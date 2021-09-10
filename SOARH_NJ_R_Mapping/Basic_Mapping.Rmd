@@ -8,7 +8,23 @@ output: html_document
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 
+library(sf) # use this to read geojsons and shapefiles
+library(tmap) # us this to map them
 
+# Let's get started with this basic data!
+housingChange <- read.csv(file = '~/Box/NJSOARH/Data/ACSandCensus/Census2020/output_tables/cousub_change_2010_2020.csv')
+
+# And the municipal boundaries we need
+tmap_options(check.and.fix = TRUE)
+nj_munis <- st_read("~/Box/NJSOARH/Data/Spatial_Data/Reference_Layers/Municipal_Boundaries_of_NJ_NJGIN_2021_08_06.geojson")
+nj_munis <- st_make_valid(nj_munis) #fix any invalid geometries
+
+tmap_mode("plot")
+
+## tmap mode set to plotting
+qtm(nj_munis)
+
+plot(housingChange$pop20,housingChange$black20)
 
 ```
 
@@ -20,6 +36,20 @@ When you click the **Knit** button a document will be generated that includes bo
 
 ```{r cars}
 summary(cars)
+
+data(World, metro, rivers, land)
+
+tmap_mode("plot")
+## tmap mode set to plotting
+tm_shape(land) +
+    tm_raster("elevation", palette = terrain.colors(10)) +
+tm_shape(World) +
+    tm_borders("white", lwd = .5) +
+    tm_text("iso_a3", size = "AREA") +
+tm_shape(metro) +
+    tm_symbols(col = "red", size = "pop2020", scale = .5) +
+tm_legend(show = FALSE)
+
 ```
 
 ## Including Plots
@@ -27,7 +57,25 @@ summary(cars)
 You can also embed plots, for example:
 
 ```{r pressure, echo=FALSE}
-plot(pressure)
+
+tmap_mode("plot")
+## tmap mode set to plotting
+
+data(NLD_muni)
+
+NLD_muni$perc_men <- NLD_muni$pop_men / NLD_muni$population * 100
+
+tm_shape(NLD_muni) +
+    tm_polygons("perc_men", palette = "RdYlBu") +
+    tm_facets(by = "province")
+
+tm <- tm_shape(World) +
+    tm_polygons("HPI", legend.title = "Happy Planet Index")
+
+## save an image ("plot" mode)
+tmap_save(tm, filename = "world_map.png")
+
+
 ```
 
 Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
