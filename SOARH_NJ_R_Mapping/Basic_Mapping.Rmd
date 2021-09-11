@@ -9,7 +9,8 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 
 library(sf) # use this to read geojsons and shapefiles
-library(tmap) # us this to map them
+library(tmap) # use this to map them
+library(dplyr) # use this to join and manipulate data frames
 
 # Let's get started with this basic data!
 housingChange <- read.csv(file = '~/Box/NJSOARH/Data/ACSandCensus/Census2020/output_tables/cousub_change_2010_2020.csv')
@@ -21,10 +22,24 @@ nj_munis <- st_make_valid(nj_munis) #fix any invalid geometries
 
 tmap_mode("plot")
 
-## tmap mode set to plotting
-qtm(nj_munis)
+housingChange <- housingChange %>% dplyr::rowwise() %>% dplyr::mutate(GEOID_Short = strsplit(GEOID, split="US")[[1]][2]) # split the GEOID from Eric's ACS pull by the "US" substring to just get the part starting with 34 to match the NJGIN geometry
 
-plot(housingChange$pop20,housingChange$black20)
+nj_munis_housingChange <- left_join(nj_munis, housingChange, by = c("CENSUS2010" = "GEOID_Short")) # put them together
+
+nj_munis_housingChange <- transform(nj_munis_housingChange, popden_2020 = pop20 / SQ_MILES)
+nj_munis_housingChange <- transform(nj_munis_housingChange, unitsden_2020 = units20 / SQ_MILES)
+
+## tmap mode set to plotting
+qtm(nj_munis_housingChange, fill = 'popden_2020', legend.hist = TRUE)
+
+tm <- tm_shape(nj_munis_housingChange) +
+    tm_polygons(c("pop20","popden_2020","maj20","units20","unitsden_2020","pchgunits"), style = "jenks", legend.hist = TRUE) + tm_facets(sync = TRUE, ncol = 3, nrow = 2) + tm_layout(legend.outside = FALSE)
+
+tm
+
+## save an image ("plot" mode)
+tmap_save(tm, filename = "nj_muni_housingChange_2020.png")
+
 
 ```
 
