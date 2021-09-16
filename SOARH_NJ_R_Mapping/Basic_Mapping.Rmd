@@ -20,26 +20,39 @@ tmap_options(check.and.fix = TRUE)
 nj_munis <- st_read("~/Box/NJSOARH/Data/Spatial_Data/Reference_Layers/Municipal_Boundaries_of_NJ_NJGIN_2021_08_06.geojson")
 nj_munis <- st_make_valid(nj_munis) #fix any invalid geometries
 
-tmap_mode("plot")
+tmap_mode("view")
 
 housingChange <- housingChange %>% dplyr::rowwise() %>% dplyr::mutate(GEOID_Short = strsplit(GEOID, split="US")[[1]][2]) # split the GEOID from Eric's ACS pull by the "US" substring to just get the part starting with 34 to match the NJGIN geometry
 
 nj_munis_housingChange <- left_join(nj_munis, housingChange, by = c("CENSUS2010" = "GEOID_Short")) # put them together
 
-nj_munis_housingChange <- transform(nj_munis_housingChange, popden_2020 = pop20 / SQ_MILES)
+nj_munis_housingChange <- transform(nj_munis_housingChange, popden_2020 = pop20 / SQ_MILES) # check for land/water area
 nj_munis_housingChange <- transform(nj_munis_housingChange, unitsden_2020 = units20 / SQ_MILES)
 
 ## tmap mode set to plotting
 qtm(nj_munis_housingChange, fill = 'popden_2020', legend.hist = TRUE)
 
-tm <- tm_shape(nj_munis_housingChange) +
+tm <- tm_shape(osm_NJ) + tm_rgb() + tm_shape(nj_munis_housingChange) +
     tm_polygons(c("pop20","popden_2020","maj20","units20","unitsden_2020","pchgunits"), style = "jenks", legend.hist = TRUE) + tm_facets(sync = TRUE, ncol = 3, nrow = 2) + tm_layout(legend.outside = FALSE)
 
 tm
 
-## save an image ("plot" mode)
-tmap_save(tm, filename = "nj_muni_housingChange_2020.png")
+tm2 <- tm_shape(osm_NJ) + tm_rgb() + tm_shape(nj_munis_housingChange) +
+    tm_polygons("popden_2020", title = "2020 Population Density", style = "jenks", legend.hist = TRUE, alpha = 0.7) + tm_borders(lwd = 1) +  tm_layout(legend.outside = FALSE, legend.title.size = 1, legend.text.size = 0.6, legend.position = c("left","top"), legend.bg.color = "white", legend.format=list(fun=function(x) paste0(formatC(x, digits=0, format="f"))), legend.bg.alpha = .8, legend.hist.width = .5)
 
+tm2
+
+tmap_save(tm2, filename = "nj_muni_housingChange_2020_popden.png")
+
+
+## save an image ("plot" mode)
+tmap_save(tm, filename = "nj_muni_housingChange_2020_backdrop.png")
+
+library(tmap)
+library(tmaptools)
+library(OpenStreetMap)
+osm_NJ <- read_osm(nj_munis, ext=1.1)
+tm_shape(osm_NJ) + tm_rgb()
 
 ```
 
