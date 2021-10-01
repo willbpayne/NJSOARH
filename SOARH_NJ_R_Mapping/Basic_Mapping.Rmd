@@ -15,13 +15,39 @@ library(dplyr) # use this to join and manipulate data frames
 # Let's get started with this basic data!
 housingChange <- read.csv(file = '~/Box/NJSOARH/Data/ACSandCensus/Census2020/output_tables/cousub_change_2010_2020.csv')
 
+PictureSubsidizedHousing <- read.csv(file = '~/Box/NJSOARH/Data/Picture of Subsidized Households/Mapping/PSH_2020_tract.csv')
+
 # And the municipal boundaries we need
 tmap_options(check.and.fix = TRUE)
 nj_munis <- st_read("~/Box/NJSOARH/Data/Spatial_Data/Reference_Layers/Municipal_Boundaries_of_NJ_NJGIN_2021_08_06.geojson")
 nj_munis <- st_make_valid(nj_munis) #fix any invalid geometries
 
+nj_tracts <- st_read("~/Box/NJSOARH/Data/Spatial_Data/Reference_Layers/nhgis_nj_tracts_2020.geojson")
+nj_tracts <- st_make_valid(nj_tracts) #fix any invalid geometries
+
 tmap_mode("view")
 
+```
+
+# PICTURE OF SUBSIDIZED HOUSING (LAUREN)
+
+```{r setup, include=FALSE}
+
+nj_tracts_PSH <- left_join(nj_tracts, PictureSubsidizedHousing, by = c("GEOID" = "geoid")) # put them together
+
+#tm_shape(osm_NJ) + tm_rgb() + 
+tmap_mode("view")
+
+tm <- tm_shape(nj_tracts_PSH) +
+    tm_polygons(c("share_tot","share_rental"), style = "jenks", legend.hist = TRUE) + tm_facets(sync = TRUE, nrow = 1) + tm_layout(legend.outside = FALSE)
+
+tm
+
+```
+
+# HOUSING CHANGE DATA (ERIC)
+
+```{r setup, include=FALSE}
 housingChange <- housingChange %>% dplyr::rowwise() %>% dplyr::mutate(GEOID_Short = strsplit(GEOID, split="US")[[1]][2]) # split the GEOID from Eric's ACS pull by the "US" substring to just get the part starting with 34 to match the NJGIN geometry
 
 nj_munis_housingChange <- left_join(nj_munis, housingChange, by = c("CENSUS2010" = "GEOID_Short")) # put them together
