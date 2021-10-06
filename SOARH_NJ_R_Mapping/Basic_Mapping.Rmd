@@ -17,6 +17,20 @@ housingChange <- read.csv(file = '~/Box/NJSOARH/Data/ACSandCensus/Census2020/out
 
 PictureSubsidizedHousing <- read.csv(file = '~/Box/NJSOARH/Data/Picture of Subsidized Households/Mapping/PSH_2020_tract.csv')
 
+#PictureSubsidizedHousing <-  PictureSubsidizedHousing %>% mutate(total_units = replace(total_units, total_units<0, NA)) # convert -1 in total_units to NA
+
+PictureSubsidizedHousing <-  PictureSubsidizedHousing %>% mutate(total_units = replace(total_units, total_units<0, 0)) # convert -1 in total_units to 0
+
+# Recalculate these columns with NAs converted
+PictureSubsidizedHousing$share_tot <- PictureSubsidizedHousing$total_units / PictureSubsidizedHousing$occhu_e
+
+PictureSubsidizedHousing$share_rental <- PictureSubsidizedHousing$total_units / PictureSubsidizedHousing$renterocchu_e
+
+PictureSubsidizedHousing$share_pbsec8_tot <- PictureSubsidizedHousing$pbsec8 / PictureSubsidizedHousing$occhu_e
+
+PictureSubsidizedHousing$share_pbsec8_rental <- PictureSubsidizedHousing$pbsec8 / PictureSubsidizedHousing$renterocchu_e
+
+
 # And the municipal boundaries we need
 tmap_options(check.and.fix = TRUE)
 nj_munis <- st_read("~/Box/NJSOARH/Data/Spatial_Data/Reference_Layers/Municipal_Boundaries_of_NJ_NJGIN_2021_08_06.geojson")
@@ -25,7 +39,7 @@ nj_munis <- st_make_valid(nj_munis) #fix any invalid geometries
 nj_tracts <- st_read("~/Box/NJSOARH/Data/Spatial_Data/Reference_Layers/nhgis_nj_tracts_2020.geojson")
 nj_tracts <- st_make_valid(nj_tracts) #fix any invalid geometries
 
-tmap_mode("view")
+tmap_mode("plot")
 
 ```
 
@@ -38,8 +52,97 @@ nj_tracts_PSH <- left_join(nj_tracts, PictureSubsidizedHousing, by = c("GEOID" =
 #tm_shape(osm_NJ) + tm_rgb() + 
 tmap_mode("view")
 
-tm <- tm_shape(nj_tracts_PSH) +
-    tm_polygons(c("share_tot","share_rental"), style = "jenks", legend.hist = TRUE) + tm_facets(sync = TRUE, nrow = 1) + tm_layout(legend.outside = FALSE)
+library(tmaptools)
+library(rmapshaper)
+
+nj_map <- tm_shape(simplify_shape(nj_tracts_PSH), unit = "mi") +
+    tm_polygons(c("share_tot"), 
+                style = "jenks", 
+                legend.hist = TRUE,
+                title = "",
+                textNA = "No Data",
+                labels = c("< 10%", "10-20%","20-30%","30-60%","60-100%"),
+                border.lwd=0.01, 
+                border.alpha = 0.4) +  
+   # tm_compass(north = 0, type = 'arrow', show.labels =0, position = c('right','bottom')) + 
+    tm_scale_bar() +
+    tm_layout(legend.format = list(fun = function(x) formatC(x, digits = 1, format = "f")),
+    legend.outside = T, legend.outside.position = 'right',
+    legend.hist.width = 1,
+    legend.hist.height = 0.5,
+    legend.stack = 'vertical',
+    legend.title.fontface = 'bold',
+    legend.title.size = 3,
+    main.title = "Subsidized Housing as % of All Units by NJ Census Tract",
+    main.title.size = 1.5,
+    frame = FALSE)
+nj_map
+
+essex_tracts_PSH <- nj_tracts_PSH[nj_tracts_PSH$COUNTYFP == '013',]
+essex_munis <- nj_munis[nj_munis$COUNTY == "ESSEX",]
+
+essex_munis$tmaplabel <- sub(essex_munis$MUN_LABEL, pattern = " [[:alpha:]]*$", replacement = "")
+
+essex_map <- tm_shape(simplify_shape(essex_tracts_PSH), unit = "mi") +
+    tm_polygons(c("share_tot"), 
+                style = "jenks", 
+                legend.hist = TRUE,
+                title = "",
+                textNA = "No Data",
+                labels = c("< 10%", "10-20%","20-30%","30-60%","60-100%"),
+                border.lwd=0.01, 
+                border.alpha = 0.4) +  tm_shape(essex_munis) + tm_borders(lwd = 1) + tm_text("tmaplabel", size = .8, remove.overlap = FALSE, shadow = TRUE) +
+   # tm_compass(north = 0, type = 'arrow', show.labels =0, position = c('right','bottom')) + 
+    tm_scale_bar(position = c('left', 'bottom')) +
+    tm_layout(legend.format = list(fun = function(x) formatC(x, digits = 1, format = "f")),
+    legend.outside = T, legend.outside.position = 'right',
+    legend.hist.width = 1,
+    legend.hist.height = 0.5,
+    legend.stack = 'vertical',
+    legend.title.fontface = 'bold',
+    legend.title.size = 3,
+    main.title = "Subsidized Housing as % of All Units by Essex County Census Tract",
+    main.title.size = 1.5,
+    frame = FALSE)
+essex_map
+
+middlesex_tracts_PSH <- nj_tracts_PSH[nj_tracts_PSH$COUNTYFP == '023',]
+middlesex_munis <- nj_munis[nj_munis$COUNTY == "MIDDLESEX",]
+
+middlesex_munis$tmaplabel <- sub(middlesex_munis$MUN_LABEL, pattern = " [[:alpha:]]*$", replacement = "")
+
+middlesex_map <- tm_shape(simplify_shape(middlesex_tracts_PSH), unit = "mi") +
+    tm_polygons(c("share_tot"), 
+                style = "jenks", 
+                legend.hist = TRUE,
+                title = "",
+                textNA = "No Data",
+                labels = c("< 10%", "10-20%","20-30%","30-60%","60-100%"),
+                border.lwd=0.01, 
+                border.alpha = 0.4) +  tm_shape(middlesex_munis) + tm_borders(lwd = 1) + tm_text("tmaplabel", size = .8, remove.overlap = FALSE, shadow = TRUE) +
+   # tm_compass(north = 0, type = 'arrow', show.labels =0, position = c('right','bottom')) + 
+    tm_scale_bar(position = c('left', 'bottom')) +
+    tm_layout(legend.format = list(fun = function(x) formatC(x, digits = 1, format = "f")),
+    legend.outside = T, legend.outside.position = 'right',
+    legend.hist.width = 1,
+    legend.hist.height = 0.5,
+    legend.stack = 'vertical',
+    legend.title.fontface = 'bold',
+    legend.title.size = 3,
+    main.title = "Subsidized Housing as % of All Units by Essex County Census Tract",
+    main.title.size = 1.5,
+    frame = FALSE)
+middlesex_map
+
+tm <- tm_shape(simplify_shape(nj_tracts_PSH)) +
+    tm_polygons(c("share_tot","share_rental"), style = "jenks", legend.hist = TRUE, title="Subsidized Housing in NJ") + tm_facets(sync = TRUE, nrow = 1) +  tm_compass(north = 0, type = 'arrow', show.labels =0, position = c('right','top')) + 
++ tm_layout( tm_layout(legend.format = list(fun = function(x) formatC(x, digits = 1, format = "f")),
+    legend.outside = T, legend.outside.position = 'bottom',
+    legend.hist.width = 1,
+    legend.hist.height = 0.5,
+    legend.stack = 'horizontal',
+    legend.title.fontface = 'bold',
+    legend.text.fontface = 'bold'))
 
 tm
 
