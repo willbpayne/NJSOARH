@@ -36,7 +36,7 @@ tmap_options(check.and.fix = TRUE)
 nj_munis <- st_read("~/Box/NJSOARH/Data/Spatial_Data/Reference_Layers/Municipal_Boundaries_of_NJ_NJGIN_2021_08_06.geojson")
 nj_munis <- st_make_valid(nj_munis) #fix any invalid geometries
 
-nj_tracts <- st_read("~/Box/NJSOARH/Data/Spatial_Data/Reference_Layers/Census2010Tr2012/Govt_TIGER2012_tract2010.shp")
+nj_tracts <- st_read("~/Box/NJSOARH/Data/Spatial_Data/Reference_Layers/nhgis_nj_tracts_2010.geojson")
 nj_tracts <- st_make_valid(nj_tracts) #fix any invalid geometries
 
 tmap_mode("plot")
@@ -47,7 +47,9 @@ tmap_mode("plot")
 
 ```{r setup, include=FALSE}
 
-nj_tracts_PSH <- left_join(nj_tracts, PictureSubsidizedHousing, by = c("TRACTID" = "geoid")) # put them together
+nj_tracts_PSH <- left_join(nj_tracts, PictureSubsidizedHousing, by = c("GEOID10" = "geoid")) # put them together
+
+nj_tracts_PSH$pct_HCV_rental <- (nj_tracts_PSH$HCV / nj_tracts_PSH$renterocchu_e) * 100
 
 #tm_shape(osm_NJ) + tm_rgb() + 
 tmap_mode("view")
@@ -59,8 +61,11 @@ nj_map <- tm_shape(simplify_shape(nj_tracts_PSH), unit = "mi") +
     tm_polygons(c("HCV"), 
                 style = "jenks", 
                 legend.hist = TRUE,
+                id="NAMELSAD10", # sets hover text for view mode
                 title = "",
                 textNA = "No Data",
+                popup.vars=c("County ID"="COUNTYFP10", "HCV Units"="HCV", "Rental Units" = "renterocchu_e","HCV % of Rental Units"="pct_HCV_rental"),
+                popup.format=list(HCV=list(digits=5)),
                 #labels = c("< 10%", "10-20%","20-30%","30-60%","60-100%"),
                 border.lwd=0.01,
                 alpha = 0.5,
