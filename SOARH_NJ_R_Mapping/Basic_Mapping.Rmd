@@ -52,39 +52,45 @@ nj_tracts_PSH <- left_join(nj_tracts, PictureSubsidizedHousing, by = c("GEOID10"
 nj_tracts_PSH$pct_HCV_rental <- (nj_tracts_PSH$HCV / nj_tracts_PSH$renterocchu_e) * 100
 
 #tm_shape(osm_NJ) + tm_rgb() + 
-tmap_mode("view")
+tmap_mode("plot")
 
 library(tmaptools)
 library(rmapshaper)
 
+sum(PictureSubsidizedHousing$pubhsg, na.rm = TRUE)
+sum(PictureSubsidizedHousing$pbsec8, na.rm = TRUE)
+
+sum(PictureSubsidizedHousingCountyExtras$pubhsg, na.rm = TRUE)
+sum(PictureSubsidizedHousingCountyExtras$pbsec8, na.rm = TRUE)
+
 nj_map <- tm_shape(simplify_shape(nj_tracts_PSH), unit = "mi") +
-    tm_polygons(c("HCV"), 
+    tm_polygons(c("share_tot"), 
                 style = "jenks", 
                 legend.hist = TRUE,
                 id="NAMELSAD10", # sets hover text for view mode
                 title = "",
                 textNA = "No Data",
-                popup.vars=c("County ID"="COUNTYFP10", "HCV Units"="HCV", "Rental Units" = "renterocchu_e","HCV % of Rental Units"="pct_HCV_rental"),
+                popup.vars=c("County ID"="COUNTYFP10", "HCV Units"="HCV", "Rental Units" = "renterocchu_e","Subsidized Share of Rental Units"="share_tot"),
                 popup.format=list(HCV=list(digits=5)),
                 #labels = c("< 10%", "10-20%","20-30%","30-60%","60-100%"),
-                border.lwd=0.01,
-                alpha = 0.5,
-                border.alpha = 0.4) +  
+                border.lwd=0.001,
+                alpha = 0.8,
+                border.alpha = 0.1) +  
    # tm_compass(north = 0, type = 'arrow', show.labels =0, position = c('right','bottom')) + 
     tm_scale_bar() +
-    tm_layout(legend.format = list(fun = function(x) formatC(x, digits = 1, format = "f")),
+    tm_layout(legend.format = list(fun = function(x) formatC(x, digits = 2, format = "f")),
     legend.outside = T, legend.outside.position = 'right',
     legend.hist.width = 1,
     legend.hist.height = 0.5,
     legend.stack = 'vertical',
     legend.title.fontface = 'bold',
     legend.title.size = 3,
-    main.title = "HCV Units by NJ Census Tract",
+    main.title = "Subsidized Housing Share of Total Units by NJ Census Tract",
     main.title.size = 1.5,
     frame = FALSE)
 nj_map
 
-essex_tracts_PSH <- nj_tracts_PSH[nj_tracts_PSH$COUNTYFP == '013',]
+essex_tracts_PSH <- nj_tracts_PSH[nj_tracts_PSH$COUNTYFP10 == '013',]
 essex_munis <- nj_munis[nj_munis$COUNTY == "ESSEX",]
 
 essex_tracts_PSH$share_pbsec8_tot <- essex_tracts_PSH$pbsec8 / essex_tracts_PSH$occhu_e
@@ -95,6 +101,20 @@ essex_munis$tmaplabel <- sub(essex_munis$MUN_LABEL, pattern = " [[:alpha:]]*$", 
 
 essex_tracts_PSH$share_HCV_rental <- essex_tracts_PSH$HCV / essex_tracts_PSH$renterocchu_e
 
+sum(filter(nj_tracts_PSH, COUNTYFP10 == "039")$total_units) # mean recommended rating
+
+
+nj_county_total_units <- aggregate(nj_tracts_PSH$total_units, by=list(COUNTYFP10=nj_tracts_PSH$COUNTYFP10), FUN=sum)
+
+PictureSubsidizedHousingCountyExtras <- filter(PictureSubsidizedHousing, endsWith(geoid, "999"))
+
+PictureSubsidizedHousingCountyExtras$COUNTYFP10 <- substring(PictureSubsidizedHousingCountyExtras$geoid, 3,5)
+
+PictureSubsidizedHousingCountyExtras <- left_join(nj_county_total_units, PictureSubsidizedHousingCountyExtras, by = "COUNTYFP10")
+
+PictureSubsidizedHousingCountyExtras$UnallocatedPct <- PictureSubsidizedHousingCountyExtras$total_units/((PictureSubsidizedHousingCountyExtras$x + PictureSubsidizedHousingCountyExtras$total_units))*100
+
+median(PictureSubsidizedHousingCountyExtras$UnallocatedPct)
 
 essex_map <- tm_shape(simplify_shape(essex_tracts_PSH), unit = "mi") +
     tm_polygons(c("HCV"), 
@@ -146,6 +166,10 @@ middlesex_map <- tm_shape(simplify_shape(middlesex_tracts_PSH), unit = "mi") +
     main.title.size = 1.5,
     frame = FALSE)
 middlesex_map
+
+middlesex_tracts_PSH <- nj_tracts_PSH[nj_tracts_PSH$COUNTYFP == '023',]
+middlesex_munis <- nj_munis[nj_munis$COUNTY == "MIDDLESEX",]
+
 
 tm <- tm_shape(simplify_shape(nj_tracts_PSH)) +
     tm_polygons(c("share_tot","share_rental"), style = "jenks", legend.hist = TRUE, title="Subsidized Housing in NJ") + tm_facets(sync = TRUE, nrow = 1) +  tm_compass(north = 0, type = 'arrow', show.labels =0, position = c('right','top')) + 
