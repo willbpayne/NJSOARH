@@ -11,6 +11,58 @@ knitr::opts_chunk$set(echo = TRUE)
 library(sf) # use this to read geojsons and shapefiles
 library(tmap) # use this to map them
 library(dplyr) # use this to join and manipulate data frames
+library(tidyverse)
+
+# get those comparisons
+comparisons <- read.csv(file = '~/Box/NJSOARH/Data/Picture of Subsidized Households/Data Comparisons/Comparisons_Pg_1.csv')
+
+comparisons$county <- substring(comparisons$geoid, 3,5)
+
+comparisons$tract <- substring(comparisons$geoid,6,11)
+
+county_unallocated_by_tract <- filter(comparisons, tract == '999999')
+
+county_unallocated_by_tract <- county_unallocated_by_tract  %>% group_by(county) %>% summarise(tract_total_units = sum(tract_total_units))
+
+county_unallocated_by_tract$unallocated_by_tract <- county_unallocated_by_tract$tract_total_units
+
+county_unallocated_by_tract$tract_total_units <- NULL
+
+comparisons_county_level <- comparisons %>% group_by(county) %>% summarise(tract_total_units = sum(tract_total_units), proj_agg_total_units = sum(proj_agg_total_units))
+
+comparisons_county_level$Difference <- comparisons_county_level$proj_agg_total_units - comparisons_county_level$tract_total_units
+
+county_comparisons <- left_join(comparisons_county_level, county_unallocated_by_tract, by = "county") # 
+
+county_comparisons$FIPSSTCO <- paste("34",county_comparisons$county, sep = "")
+
+nj_counties <- st_read("~/Box/NJSOARH/Data/Spatial_Data/Reference_Layers/County_Boundaries_of_NJ_NJGIN_2021_08_06.geojson")
+
+nj_counties <- st_make_valid(nj_counties) #fix any invalid geometries
+
+tmap_mode("view")
+typeof(nj_counties$FIPSSTCO)
+nj_countiescomparisons <- left_join(nj_counties, county_comparisons, by = "FIPSSTCO") # put them together
+
+qtm(nj_countiescomparisons, fill = "Difference")
+qtm(nj_countiescomparisons, fill = "unallocated_by_tract")
+
+comparisons[is.na(comparisons)] = 0
+
+comparisons_grouped <- comparisons %>%
+  group_by(geoid) %>%
+  summarise(Diff = sum(Difference), Tract = sum(tract_total_units), Proj = sum(proj_agg_total_units))
+
+comparisons_grouped$Pct_Diff <- (comparisons_grouped$Diff/comparisons_grouped$Proj)*100
+
+head(comparisons)
+
+spreadcomparisons <- spread(comparisons, program_label, Difference, fill = NA, convert = FALSE)
+
+pivotcomparisons <- pivot_wider(data = comparisons, 
+            id_cols = geoid, 
+            names_from = program_label, 
+            values_from = c("tract_total_units", "proj_agg_total_units", "Difference"))
 
 # Let's get started with this basic data!
 housingChange <- read.csv(file = '~/Box/NJSOARH/Data/ACSandCensus/Census2020/output_tables/cousub_change_2010_2020.csv')
@@ -40,6 +92,55 @@ nj_tracts <- st_read("~/Box/NJSOARH/Data/Spatial_Data/Reference_Layers/nhgis_nj_
 nj_tracts <- st_make_valid(nj_tracts) #fix any invalid geometries
 
 tmap_mode("plot")
+
+nj_tracts_comparisons <- left_join(nj_tracts, pivotcomparisons, by = c("GEOID10" = "geoid")) # put them together
+
+qtm(nj_tracts_comparisons)
+qtm(nj_tracts_comparisons, fill = "Difference_Public Housing")
+qtm(nj_tracts_comparisons, fill = "Difference_Project Based Section 8",    border.lwd=0.001, alpha = 0.8,)
+
+nj_comparisons_map <- tm_shape(simplify_shape(nj_tracts_comparisons, unit = "mi"))
+                  
+nj_comparisons_map             
+                               +
+    tm_polygons(c("Difference_Public Housing"), 
+                legend.hist = TRUE,
+                title = "",
+                border.lwd=0.001,
+                alpha = 0.8,
+                border.alpha = 0.1) 
+
+
++  
+   # tm_compass(north = 0, type = 'arrow', show.labels =0, position = c('right','bottom')) + 
+    tm_scale_bar() +
+    tm_layout(legend.outside = T, legend.outside.position = 'right',
+    legend.hist.width = 1,
+    legend.hist.height = 0.5,
+    legend.stack = 'vertical',
+    legend.title.fontface = 'bold',
+    legend.title.size = 3,
+    main.title = "Comparison of Project-Aggregated vs. Tract Counts",
+    main.title.size = 1.5,
+    frame = FALSE)
+nj_comparisons_map
+
+
+
+nj_tracts_comparisons_grouped <- left_join(nj_tracts, comparisons_grouped, by = c("GEOID10" = "geoid")) # put them together
+tmap_mode("view")
+qtm(nj_tracts_comparisons_grouped, fill = "Diff")
+
+qtm(nj_tracts_comparisons_grouped, fill = "Diff")
+
+nj_comparisons_map <- tm_shape(nj_tracts_comparisons_grouped) + tm_polygons(c("Diff"), 
+                legend.hist = TRUE,
+                title = "",
+                border.lwd=0.1,
+                alpha = 0.75,
+                border.alpha = 0.1) 
+
+nj_comparisons_map
 
 ```
 
