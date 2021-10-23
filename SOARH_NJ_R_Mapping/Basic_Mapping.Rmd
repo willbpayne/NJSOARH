@@ -18,6 +18,8 @@ comparisons <- read.csv(file = '~/Box/NJSOARH/Data/Picture of Subsidized Househo
 
 comparisons$county <- substring(comparisons$geoid, 3,5)
 
+comparisons
+
 comparisons$tract <- substring(comparisons$geoid,6,11)
 
 county_unallocated_by_tract <- filter(comparisons, tract == '999999')
