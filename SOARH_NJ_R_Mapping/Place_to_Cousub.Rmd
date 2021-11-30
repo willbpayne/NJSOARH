@@ -78,7 +78,14 @@ place_PSH_Cousubs_Already_99999s_Matched <- left_join(place_PSH_Cousubs_Already_
 place_PSH_Cousubs_Already$PSH_Join <- paste0(place_PSH_Cousubs_Already$place," ",place_PSH_Cousubs_Already$Join_Name) # 843 rows handled now, plus 416 for CDPs that aren't manual and 6 that are missing
 
 rm(place_PSH_Cousubs_Already_Matched_CLEANUP, place_PSH_Cousubs_Not_Missing, place_PSH_Cousubs_Already_Valid) # clean up
- 
+
+place_PSH_Cousubs_So_Far <- dplyr::bind_rows(place_PSH_Cousubs_Already_Matched,place_PSH_CDPs_with_Munis,place_PSH_Cousubs_Missing)
+
+# 1265 rows handled so far (some still need to be combined at the muni level)
+# 341 99999s (fix these by hand; 6 ambiguous townships that need to be sorted out and added to the input file to disambiguate)
+# 8 Manual CDPs (assigning these is going to be its own manual work)
+# 246 remainders (work to get these sorted and lined up with township)
+
 ```
 
 ## Including Plots
