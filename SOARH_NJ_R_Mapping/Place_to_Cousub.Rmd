@@ -1,0 +1,92 @@
+---
+title: "Tract to Cousub Conversion"
+author: "Will P"
+date: "11/29/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r cars}
+
+getwd()
+
+library(sf) # use this to read geojsons and shapefiles
+library(tmap) # use this to map them
+library(dplyr) # use this to join and manipulate data frames
+library(tidyverse)
+
+place_PSH <- read.csv(file = 'NJ_PLACE_2020_WP.csv')
+place_PSH_CDPs <- place_PSH %>% filter(grepl('CDP', name)) # extract CDPs
+place_PSH_no_CDPs <- place_PSH %>% filter(!grepl('CDP', name)) # filter them out of the main dataset
+place_PSH_999999s <- filter(place_PSH_no_CDPs, code == '3499999') # extract places without geoids
+place_PSH_remainders <- place_PSH_999999s %>% filter(grepl('REMAINDER', name)) # extract remainders
+
+place_PSH_othercousubs <- place_PSH_999999s %>% filter(!grepl('REMAINDER', name)) # extract remainders
+
+place_PSH_geoID <- filter(place_PSH_no_CDPs, code != '3499999')
+
+place_PSH_Cousubs_Already <- rbind(place_PSH_geoID, place_PSH_othercousubs)
+
+place_PSH_Cousubs_Already$Join_Name <- str_to_title(substr(place_PSH_Cousubs_Already$name,4,nchar(place_PSH_Cousubs_Already$name)))
+
+rm(place_PSH_no_CDPs, place_PSH_geoID, place_PSH_othercousubs, place_PSH_999999s)
+
+
+CDP_to_Cousub_Mapping <- read.csv('CDP_to_Cousub_Mapping.csv')
+
+CDP_to_Cousub_Mapping$code <- as.character(CDP_to_Cousub_Mapping$GEOID10)
+glimpse(CDP_to_Cousub_Mapping)
+
+place_PSH_CDPs_with_Munis <- left_join(place_PSH_CDPs, CDP_to_Cousub_Mapping, by = "code") # put them together
+
+place_PSH_CDPs_Manual <- filter(place_PSH_CDPs_with_Munis, is.na(MUNI_MUN_LABEL))
+
+place_PSH_CDPs_with_Munis <- filter(place_PSH_CDPs_with_Munis, !is.na(MUNI_MUN_LABEL))
+
+rm(place_PSH_CDPs) # get rid of earlier issues
+
+NJ_Munis_for_Matching <- read.csv('NJ_Munis_for_Matching.csv')
+NJ_Munis_for_Matching$place <- substr(NJ_Munis_for_Matching$GISJOIN,7,11)
+NJ_Munis_for_Matching$PSH_Join <- paste0(NJ_Munis_for_Matching$place," ",NJ_Munis_for_Matching$MUN_LABEL)
+
+
+
+glimpse(place_PSH_Cousubs_Already)
+glimpse(NJ_Munis_for_Matching)
+
+place_PSH_Cousubs_Missing <- filter(place_PSH_Cousubs_Already, place == 'XXXXX')
+place_PSH_Cousubs_Not_Missing <- filter(place_PSH_Cousubs_Already, !place == 'XXXXX')
+
+place_PSH_Cousubs_Already_99999s <- filter(place_PSH_Cousubs_Not_Missing, place == '99999')
+place_PSH_Cousubs_Already_Valid <- filter(place_PSH_Cousubs_Not_Missing, !place == '99999')
+
+place_PSH_Cousubs_Already_Valid$PSH_Join <- paste0(place_PSH_Cousubs_Already_Valid$place," ",place_PSH_Cousubs_Already_Valid$Join_Name)
+
+place_PSH_Cousubs_Already_Matched <- left_join(place_PSH_Cousubs_Already_Valid, NJ_Munis_for_Matching, by = "PSH_Join") # put them together
+
+place_PSH_Cousubs_Already_99999s_Matched <- left_join(place_PSH_Cousubs_Already_99999s, NJ_Munis_for_Matching, by = c("Join_Name" = "MUN_LABEL")) # put them together
+
+place_PSH_Cousubs_Already$PSH_Join <- paste0(place_PSH_Cousubs_Already$place," ",place_PSH_Cousubs_Already$Join_Name) # 843 rows handled now, plus 416 for CDPs that aren't manual and 6 that are missing
+
+rm(place_PSH_Cousubs_Already_Matched_CLEANUP, place_PSH_Cousubs_Not_Missing, place_PSH_Cousubs_Already_Valid) # clean up
+ 
+```
+
+## Including Plots
+
+You can also embed plots, for example:
+
+```{r pressure, echo=FALSE}
+plot(pressure)
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
