@@ -27,12 +27,10 @@ library(tidyverse)
 place_PSH <- read.csv(file = 'NJ_PLACE_2020_WP.csv')
 place_PSH_CDPs <- place_PSH %>% filter(grepl('CDP', name)) # extract CDPs
 place_PSH_no_CDPs <- place_PSH %>% filter(!grepl('CDP', name)) # filter them out of the main dataset
-place_PSH_999999s <- filter(place_PSH_no_CDPs, code == '3499999') # extract places without geoids
-place_PSH_remainders <- place_PSH_999999s %>% filter(grepl('REMAINDER', name)) # extract remainders
-
-place_PSH_othercousubs <- place_PSH_999999s %>% filter(!grepl('REMAINDER', name)) # extract remainders
-
-place_PSH_geoID <- filter(place_PSH_no_CDPs, code != '3499999')
+place_PSH_999999s <- filter(place_PSH_no_CDPs, code == '3499999') # extract cousubs without geoids, including remainders
+place_PSH_geoID <- filter(place_PSH_no_CDPs, code != '3499999') # extract cousubs with geoids
+place_PSH_remainders <- place_PSH_999999s %>% filter(grepl('REMAINDER', name)) # extract remainders of cousubs
+place_PSH_othercousubs <- place_PSH_999999s %>% filter(!grepl('REMAINDER', name)) # extract other cousubs without geoids
 
 place_PSH_Cousubs_Already <- rbind(place_PSH_geoID, place_PSH_othercousubs)
 
