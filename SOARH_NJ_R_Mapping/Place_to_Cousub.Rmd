@@ -9,12 +9,6 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-## R Markdown
-
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
-
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
-
 ```{r cars}
 
 getwd()
@@ -25,6 +19,47 @@ library(dplyr) # use this to join and manipulate data frames
 library(tidyverse)
 
 place_PSH <- read.csv(file = 'NJ_PLACE_2020_WP.csv')
+
+place_PSH[place_PSH==-1]<-0 # replace -1 with 0 throughout (missing data)
+place_PSH[place_PSH==-4]<-NA # replace -4 with NA throughout (suppressed demographic data)
+place_PSH[place_PSH==-5]<-NA # replace -5 with NA throughout (reporting under 50% demographic data)
+
+# section of manual updates based on townships with ambiguous names
+place_PSH$code[place_PSH$name == "NJ FRANKLIN TOWNSHIP"] <- 3424840 # manually set Franklin Township (Gloucester County)
+place_PSH$code[place_PSH$name == "NJ GREENWICH TOWNSHIP"] <- 3428170 # manually set Greenwich Township (Cumberland County)
+place_PSH$code[place_PSH$name == "NJ SPRINGFIELD TOWNSHIP"] <- 3470020 # manually set Springfield Township (Union County)
+place_PSH$code[place_PSH$name == "NJ UNION TOWNSHIP"] <- 3474480 # manually set Union Township (Union County) 
+place_PSH$code[place_PSH$name == "NJ WASHINGTON TOWNSHIP"] <- 3477135 # manually set Washington Township (Bergen County) 
+
+place_PSH$code[place_PSH$name == "NJ REMAINDER OF FAIRFIELD TOWNSHIP"] <- 3422350 # manually set Remainder of Fairfield Township (Cumberland County)
+place_PSH$code[place_PSH$name == "NJ REMAINDER OF GREENWICH TOWNSHIP"] <- 3428185 # manually set Remainder of Greenwich Township (Gloucester County)
+place_PSH$code[place_PSH$name == "NJ REMAINDER OF MANSFIELD TOWNSHIP"] <- 3443320 # manually set Remainder of Mansfield Township (Warren County)
+
+prefixes <- unique(place_PSH$program) # get all the unique program names used in the dataset
+
+place_PSH <- pivot_wider( # pivot them to one row per cdp/cousub/remainder
+  place_PSH,
+  id_cols = NULL,
+  names_from = program,
+  names_prefix = "",
+  names_sep = "_",
+  names_glue = "{program}_{.value}",
+  values_from = c(program_label,total_units,pct_occupied,number_reported,pct_reported,months_since_report,months_since_report,pct_movein,people_per_unit,people_total,rent_per_month,spending_per_month,hh_income,person_income,pct_lt5k,pct_5k_lt10k,pct_10k_lt15k,pct_15k_lt20k,pct_ge20k,pct_wage_major,pct_welfare_major,pct_other_major,pct_median,pct_lt50_median,pct_lt30_median,pct_2adults,pct_1adult,pct_female_head,pct_female_head_child,pct_disabled_lt62,pct_disabled_ge62,pct_disabled_all,pct_lt24_head,pct_age25_50,pct_age51_61,pct_age62plus,pct_age85plus,pct_minority,pct_black_nonhsp,pct_native_american_nonhsp,pct_asian_pacific_nonhsp,pct_white_nothsp,pct_black_hsp,pct_wht_hsp,pct_oth_hsp,pct_hispanic,pct_multi,months_waiting,months_from_movein,pct_utility_allow,ave_util_allow,pct_bed1,pct_bed2,pct_bed3,pct_overhoused,tpoverty,tminority,tpct_ownsfd),
+  names_sort = TRUE
+)
+
+# sort the dataframe so that each set of unit counts and demographic variables are together by program
+names_to_order <- map(prefixes, ~ names(place_PSH)[grep(paste0(.x,"_"), names(place_PSH))]) %>% unlist
+names_id <- setdiff(names(place_PSH), names_to_order)
+place_PSH <- place_PSH %>%
+  select(names_id, names_to_order)
+
+rm(names_id, names_to_order,prefixes) # remove intermediate outputs
+
+```
+
+```{r cars}
+
 place_PSH_CDPs <- place_PSH %>% filter(grepl('CDP', name)) # extract CDPs
 place_PSH_no_CDPs <- place_PSH %>% filter(!grepl('CDP', name)) # filter them out of the main dataset
 place_PSH_999999s <- filter(place_PSH_no_CDPs, code == '3499999') # extract cousubs without geoids, including remainders
@@ -32,12 +67,15 @@ place_PSH_geoID <- filter(place_PSH_no_CDPs, code != '3499999') # extract cousub
 place_PSH_remainders <- place_PSH_999999s %>% filter(grepl('REMAINDER', name)) # extract remainders of cousubs
 place_PSH_othercousubs <- place_PSH_999999s %>% filter(!grepl('REMAINDER', name)) # extract other cousubs without geoids
 
-place_PSH_Cousubs_Already <- rbind(place_PSH_geoID, place_PSH_othercousubs)
+place_PSH_Cousubs_Already <- rbind(place_PSH_geoID, place_PSH_othercousubs) # get things that are already aggregated to cousub
 
 place_PSH_Cousubs_Already$Join_Name <- str_to_title(substr(place_PSH_Cousubs_Already$name,4,nchar(place_PSH_Cousubs_Already$name)))
 
-rm(place_PSH_no_CDPs, place_PSH_geoID, place_PSH_othercousubs, place_PSH_999999s)
+rm(place_PSH_no_CDPs, place_PSH_geoID, place_PSH_othercousubs, place_PSH_999999s) # remove intermediate steps
 
+```
+
+```{r cars}
 
 CDP_to_Cousub_Mapping <- read.csv('CDP_to_Cousub_Mapping.csv')
 
@@ -83,6 +121,30 @@ place_PSH_Cousubs_So_Far <- dplyr::bind_rows(place_PSH_Cousubs_Already_Matched,p
 # 341 99999s (fix these by hand; 6 ambiguous townships that need to be sorted out and added to the input file to disambiguate)
 # 8 Manual CDPs (assigning these is going to be its own manual work)
 # 246 remainders (work to get these sorted and lined up with township)
+
+```
+
+```{r cars}
+Combining_Cousubs_So_Far = subset(place_PSH_Cousubs_So_Far, select = -c(gsl,states,sumlevel,sub_program,entities))
+
+Combined_Cousubs_So_Far <- pivot_wider(
+  Combining_Cousubs_So_Far,
+  id_cols = NULL,
+  names_from = program,
+  names_prefix = "",
+  names_sep = "_",
+  names_glue = "{program}_{.value}",
+  values_from = c(program_label,total_units,pct_occupied,number_reported,pct_reported,months_since_report,months_since_report,pct_movein,people_per_unit,people_total,rent_per_month,spending_per_month,hh_income,person_income,pct_lt5k,pct_5k_lt10k,pct_10k_lt15k,pct_15k_lt20k,pct_ge20k,pct_wage_major,pct_welfare_major,pct_other_major,pct_median,pct_lt50_median,pct_lt30_median,pct_2adults,pct_1adult,pct_female_head,pct_female_head_child,pct_disabled_lt62,pct_disabled_ge62,pct_disabled_all,pct_lt24_head,pct_age25_50,pct_age51_61,pct_age62plus,pct_age85plus,pct_minority,pct_black_nonhsp,pct_native_american_nonhsp,pct_asian_pacific_nonhsp,pct_white_nothsp,pct_black_hsp,pct_wht_hsp,pct_oth_hsp,pct_hispanic,pct_multi,months_waiting,months_from_movein,pct_utility_allow,ave_util_allow,pct_bed1,pct_bed2,pct_bed3,pct_overhoused,tpoverty,tminority,tpct_ownsfd),
+  names_sort = TRUE
+)
+
+prefixes <- unique(Combining_Cousubs_So_Far$program)
+
+names_to_order <- map(prefixes, ~ names(Combined_Cousubs_So_Far)[grep(paste0(.x,"_"), names(Combined_Cousubs_So_Far))]) %>% unlist
+names_id <- setdiff(names(Combined_Cousubs_So_Far), names_to_order)
+
+Combined_Cousubs_So_Far_Reordered <- Combined_Cousubs_So_Far %>%
+  select(names_id, names_to_order)
 
 ```
 
