@@ -73,6 +73,26 @@ place_PSH_Cousubs_Already$Join_Name <- str_to_title(substr(place_PSH_Cousubs_Alr
 
 rm(place_PSH_no_CDPs, place_PSH_geoID, place_PSH_othercousubs, place_PSH_999999s) # remove intermediate steps
 
+# come up with a list of cousubs that need to be manually aggregated
+
+#Stafford (Ocean) 3402970320
+#Barnegat (Ocean) 3402903050
+#Belleville (Essex) 3401304695
+#Bloomfield (Essex) 3401306260
+
+#Hamilton (Atlantic) 3400129280
+#Hamilton (Mercer) 3402129310
+#Hopewell (Cumberland) 3401133120
+#Hopewell (Mercer) 3402133180
+#Lawrence (Cumberland) 3401139450
+#Lawrence (Mercer) 3402139510
+#Monroe (Gloucester) 3401547250
+#Monroe (Middlesex) 3402347280
+#Ocean (Monmouth) 3402554270
+#Ocean (Ocean) 3402954300
+#Washington (Gloucester) 3401577180
+#Washington (Morris) 3402777240
+#Washington (Warren) 3404177300
 ```
 
 ```{r cars}
