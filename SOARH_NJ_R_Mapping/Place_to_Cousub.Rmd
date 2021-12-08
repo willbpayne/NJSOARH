@@ -43,7 +43,7 @@ place_PSH <- pivot_wider( # pivot them to one row per cdp/cousub/remainder
   names_from = program,
   names_prefix = "",
   names_sep = "_",
-  names_glue = "{program}_{.value}",
+  names_glue = "Pg{program}_{.value}",
   values_from = c(program_label,total_units,pct_occupied,number_reported,pct_reported,months_since_report,months_since_report,pct_movein,people_per_unit,people_total,rent_per_month,spending_per_month,hh_income,person_income,pct_lt5k,pct_5k_lt10k,pct_10k_lt15k,pct_15k_lt20k,pct_ge20k,pct_wage_major,pct_welfare_major,pct_other_major,pct_median,pct_lt50_median,pct_lt30_median,pct_2adults,pct_1adult,pct_female_head,pct_female_head_child,pct_disabled_lt62,pct_disabled_ge62,pct_disabled_all,pct_lt24_head,pct_age25_50,pct_age51_61,pct_age62plus,pct_age85plus,pct_minority,pct_black_nonhsp,pct_native_american_nonhsp,pct_asian_pacific_nonhsp,pct_white_nothsp,pct_black_hsp,pct_wht_hsp,pct_oth_hsp,pct_hispanic,pct_multi,months_waiting,months_from_movein,pct_utility_allow,ave_util_allow,pct_bed1,pct_bed2,pct_bed3,pct_overhoused,tpoverty,tminority,tpct_ownsfd),
   names_sort = TRUE
 )
@@ -75,6 +75,9 @@ rm(place_PSH_no_CDPs, place_PSH_geoID, place_PSH_othercousubs, place_PSH_999999s
 
 # come up with a list of cousubs that need to be manually aggregated
 
+manual_tract_aggregation_list <- c(3402970320,3402903050,3401304695,3401306260,3400129280,3402129310,3401133120,3402133180,3401139450,3402139510,3401547250,3402347280,3402554270,3402954300,3401577180,3402777240,3404177300)
+
+# these four because 
 #Stafford (Ocean) 3402970320
 #Barnegat (Ocean) 3402903050
 #Belleville (Essex) 3401304695
@@ -93,6 +96,10 @@ rm(place_PSH_no_CDPs, place_PSH_geoID, place_PSH_othercousubs, place_PSH_999999s
 #Washington (Gloucester) 3401577180
 #Washington (Morris) 3402777240
 #Washington (Warren) 3404177300
+
+# SOMETHING'S WRONG WITH 3400377135 and 3400577150 TOO!
+# AND PRINCETON
+# AND CITY OF ORANGE TOWNSHIP
 ```
 
 ```{r cars}
@@ -102,26 +109,28 @@ CDP_to_Cousub_Mapping <- read.csv('CDP_to_Cousub_Mapping.csv')
 CDP_to_Cousub_Mapping$code <- as.character(CDP_to_Cousub_Mapping$GEOID10)
 glimpse(CDP_to_Cousub_Mapping)
 
+CDP_to_Cousub_Mapping <- filter(CDP_to_Cousub_Mapping, MUNI_MUN_LABEL != 'Sparta Township') # remove one of the ambiguous CDPs since all housing units are in Byram Township
+
 place_PSH_CDPs_with_Munis <- left_join(place_PSH_CDPs, CDP_to_Cousub_Mapping, by = "code") # put them together
 
 place_PSH_CDPs_Manual <- filter(place_PSH_CDPs_with_Munis, is.na(MUNI_MUN_LABEL))
 
 place_PSH_CDPs_with_Munis <- filter(place_PSH_CDPs_with_Munis, !is.na(MUNI_MUN_LABEL))
 
-rm(place_PSH_CDPs) # get rid of earlier issues
+place_PSH_CDPs_with_Munis$CENSUS2010 <- place_PSH_CDPs_with_Munis$MUNI_CENSUS2010 # need a common join field later
 
-NJ_Munis_for_Matching <- read.csv('NJ_Munis_for_Matching.csv')
-NJ_Munis_for_Matching$place <- substr(NJ_Munis_for_Matching$GISJOIN,7,11)
-NJ_Munis_for_Matching$PSH_Join <- paste0(NJ_Munis_for_Matching$place," ",NJ_Munis_for_Matching$MUN_LABEL)
+rm(place_PSH_CDPs, place_PSH_CDPs_Manual) # get rid of earlier issues
 
+# We create a field called PSH_Join to disambiguate cousubs of the same name since we have place codes and names
+NJ_Munis_for_Matching <- read.csv('NJ_Munis_for_Matching.csv') # bring in our cousub list to match with
+NJ_Munis_for_Matching$place <- substr(NJ_Munis_for_Matching$GISJOIN,7,11) # get place code from GISJOIN
+NJ_Munis_for_Matching$PSH_Join <- paste0(NJ_Munis_for_Matching$place," ",NJ_Munis_for_Matching$MUN_LABEL) # paste it to label
 
-
-glimpse(place_PSH_Cousubs_Already)
-glimpse(NJ_Munis_for_Matching)
-
+# Remove the "Missing" row
 place_PSH_Cousubs_Missing <- filter(place_PSH_Cousubs_Already, place == 'XXXXX')
 place_PSH_Cousubs_Not_Missing <- filter(place_PSH_Cousubs_Already, !place == 'XXXXX')
 
+# Get the 99999s out
 place_PSH_Cousubs_Already_99999s <- filter(place_PSH_Cousubs_Not_Missing, place == '99999')
 place_PSH_Cousubs_Already_Valid <- filter(place_PSH_Cousubs_Not_Missing, !place == '99999')
 
@@ -133,14 +142,42 @@ place_PSH_Cousubs_Already_99999s_Matched <- left_join(place_PSH_Cousubs_Already_
 
 place_PSH_Cousubs_Already$PSH_Join <- paste0(place_PSH_Cousubs_Already$place," ",place_PSH_Cousubs_Already$Join_Name) # 843 rows handled now, plus 416 for CDPs that aren't manual and 6 that are missing
 
-rm(place_PSH_Cousubs_Already_Matched_CLEANUP, place_PSH_Cousubs_Not_Missing, place_PSH_Cousubs_Already_Valid) # clean up
+rm(place_PSH_Cousubs_Not_Missing, place_PSH_Cousubs_Already_Valid) # clean up
 
-place_PSH_Cousubs_So_Far <- dplyr::bind_rows(place_PSH_Cousubs_Already_Matched,place_PSH_CDPs_with_Munis,place_PSH_Cousubs_Missing)
+place_PSH_Cousubs_So_Far <- dplyr::bind_rows(place_PSH_Cousubs_Already_99999s_Matched,place_PSH_Cousubs_Already_Matched,place_PSH_CDPs_with_Munis,place_PSH_Cousubs_Missing)
 
 # 1265 rows handled so far (some still need to be combined at the muni level)
 # 341 99999s (fix these by hand; 6 ambiguous townships that need to be sorted out and added to the input file to disambiguate)
 # 8 Manual CDPs (assigning these is going to be its own manual work)
 # 246 remainders (work to get these sorted and lined up with township)
+
+```
+
+
+```{r cars}
+
+# Handle the remainders
+
+place_PSH_remainders$MUN_LABEL <- str_to_title(substr(place_PSH_remainders$name,17,nchar(place_PSH_remainders$name)))
+
+place_PSH_remainders_matched <- left_join(place_PSH_remainders, NJ_Munis_for_Matching, by = "MUN_LABEL") # put them together
+
+place_PSH_Cousubs_So_Far <- dplyr::bind_rows(place_PSH_Cousubs_So_Far,place_PSH_remainders_matched)
+
+place_PSH_Unmerged_Final <- subset(place_PSH_Cousubs_So_Far, !CENSUS2010 %in% manual_tract_aggregation_list)
+place_PSH_Unmerged_Manual <- subset(place_PSH_Cousubs_So_Far, CENSUS2010 %in% manual_tract_aggregation_list)
+
+write.csv(place_PSH_Unmerged_Final,'place_PSH_Unmerged_Final.csv')
+
+place_PSH_Final <- place_PSH_Unmerged_Final %>%
+  group_by(CENSUS2010) %>%
+  summarise(count = n(), units = sum(Pg1_total_units))
+
+write.csv(place_PSH_Final, 'place_PSH_Final.csv')
+
+#%>%
+#  summarise(units = sum(Pg1_total_units)) %>%
+ # arrange(desc(units))
 
 ```
 
