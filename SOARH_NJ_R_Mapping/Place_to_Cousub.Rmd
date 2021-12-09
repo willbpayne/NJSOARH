@@ -24,7 +24,7 @@ place_PSH[place_PSH==-1]<-0 # replace -1 with 0 throughout (missing data)
 place_PSH[place_PSH==-4]<-NA # replace -4 with NA throughout (suppressed demographic data)
 place_PSH[place_PSH==-5]<-NA # replace -5 with NA throughout (reporting under 50% demographic data)
 
-# section of manual updates based on townships with ambiguous names
+# section of manual geoid updates for NJ townships with duplicate names in different counties
 place_PSH$code[place_PSH$name == "NJ FRANKLIN TOWNSHIP"] <- 3424840 # manually set Franklin Township (Gloucester County)
 place_PSH$code[place_PSH$name == "NJ GREENWICH TOWNSHIP"] <- 3428170 # manually set Greenwich Township (Cumberland County)
 place_PSH$code[place_PSH$name == "NJ SPRINGFIELD TOWNSHIP"] <- 3470020 # manually set Springfield Township (Union County)
@@ -158,6 +158,8 @@ place_PSH_Cousubs_So_Far <- dplyr::bind_rows(place_PSH_Cousubs_Already_99999s_Ma
 
 # Handle the remainders
 
+place_PSH_remainders <- filter(place_PSH_remainders, !name == 'NJ REMAINDER OF WASHINGTON TOWNSHIP')
+
 place_PSH_remainders$MUN_LABEL <- str_to_title(substr(place_PSH_remainders$name,17,nchar(place_PSH_remainders$name)))
 
 place_PSH_remainders_matched <- left_join(place_PSH_remainders, NJ_Munis_for_Matching, by = "MUN_LABEL") # put them together
@@ -166,6 +168,14 @@ place_PSH_Cousubs_So_Far <- dplyr::bind_rows(place_PSH_Cousubs_So_Far,place_PSH_
 
 place_PSH_Unmerged_Final <- subset(place_PSH_Cousubs_So_Far, !CENSUS2010 %in% manual_tract_aggregation_list)
 place_PSH_Unmerged_Manual <- subset(place_PSH_Cousubs_So_Far, CENSUS2010 %in% manual_tract_aggregation_list)
+
+
+place_PSH_Unmerged_Final$CENSUS2010[place_PSH_Unmerged_Final$name == "NJ CITY OF ORANGE TOWNSHIP"] <- 3401313045 # manually set Remainder of Mansfield Township (Warren County)
+place_PSH_Unmerged_Final$CENSUS2010[place_PSH_Unmerged_Final$name == "NJ PRINCETON TOWNSHIP"] <- 3402160915 # manually set Remainder of Mansfield Township (Warren County)
+
+place_PSH_Unmerged_Final$CENSUS2010[place_PSH_Unmerged_Final$name == "NJ REMAINDER OF FAIRFIELD TOWNSHIP"] <- 3401122350 # manually set Remainder of Fairfield Township (Cumberland County)
+place_PSH_Unmerged_Final$CENSUS2010[place_PSH_Unmerged_Final$name == "NJ REMAINDER OF GREENWICH TOWNSHIP"] <- 3401528185 # manually set Remainder of Greenwich Township (Gloucester County)
+place_PSH_Unmerged_Final$CENSUS2010[place_PSH_Unmerged_Final$name == "NJ REMAINDER OF MANSFIELD TOWNSHIP"] <- 3404143320 # manually set Remainder of Mansfield Township (Warren County)
 
 write.csv(place_PSH_Unmerged_Final,'place_PSH_Unmerged_Final.csv')
 
