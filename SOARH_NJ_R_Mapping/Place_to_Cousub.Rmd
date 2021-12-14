@@ -75,13 +75,16 @@ rm(place_PSH_no_CDPs, place_PSH_geoID, place_PSH_othercousubs, place_PSH_999999s
 
 # come up with a list of cousubs that need to be manually aggregated
 
-manual_tract_aggregation_list <- c(3402970320,3402903050,3401304695,3401306260,3400129280,3402129310,3401133120,3402133180,3401139450,3402139510,3401547250,3402347280,3402554270,3402954300,3401577180,3402777240,3404177300)
+manual_tract_aggregation_list <- c(3402970320,3402903050,3401304695,3401306260,3400129280,3402129310,3401133120,3402133180,3401139450,3402139510,3401547250,3402347280,3402554270,3402954300,3401577180,3402777240,3404177300,3401974420,3400569990)
 
 # these four because 
 #Stafford (Ocean) 3402970320
 #Barnegat (Ocean) 3402903050
 #Belleville (Essex) 3401304695
 #Bloomfield (Essex) 3401306260
+
+#Union (Hunterdon) 3401974420 # these two have zero units but the same name as another one
+#Springfield (Burlington) 3400569990
 
 #Hamilton (Atlantic) 3400129280
 #Hamilton (Mercer) 3402129310
@@ -97,9 +100,6 @@ manual_tract_aggregation_list <- c(3402970320,3402903050,3401304695,3401306260,3
 #Washington (Morris) 3402777240
 #Washington (Warren) 3404177300
 
-# SOMETHING'S WRONG WITH 3400377135 and 3400577150 TOO!
-# AND PRINCETON
-# AND CITY OF ORANGE TOWNSHIP
 ```
 
 ```{r cars}
@@ -109,7 +109,7 @@ CDP_to_Cousub_Mapping <- read.csv('CDP_to_Cousub_Mapping.csv')
 CDP_to_Cousub_Mapping$code <- as.character(CDP_to_Cousub_Mapping$GEOID10)
 glimpse(CDP_to_Cousub_Mapping)
 
-CDP_to_Cousub_Mapping <- filter(CDP_to_Cousub_Mapping, MUNI_MUN_LABEL != 'Sparta Township') # remove one of the ambiguous CDPs since all housing units are in Byram Township
+CDP_to_Cousub_Mapping <- filter(CDP_to_Cousub_Mapping, MUNI_MUN_LABEL != 'Byram Township') # remove one of the ambiguous CDPs since all housing units are in Sparta Township
 
 place_PSH_CDPs_with_Munis <- left_join(place_PSH_CDPs, CDP_to_Cousub_Mapping, by = "code") # put them together
 
