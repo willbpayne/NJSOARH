@@ -181,10 +181,19 @@ place_PSH_Unmerged_Final$CENSUS2010[place_PSH_Unmerged_Final$name == "NJ REMAIND
 
 write.csv(place_PSH_Unmerged_Final,'place_PSH_Unmerged_Final.csv')
 
+place_PSH_noNAs <- place_PSH_Unmerged_Final %>% # this code drops all the demographic data that we don't have
+  select(
+    where(
+      ~!all(is.na(.x))
+    )
+  )
+
 place_PSH_Final <- place_PSH_Unmerged_Final %>%
   group_by(CENSUS2010) %>%
   summarise(count = n(), 
-            name = substr(PSH_Join,7,nchar(PSH_Join)),
+            name = ifelse(is.na(PSH_Join),
+                  MUNI_MUN_LABEL,
+                  substr(PSH_Join,7,nchar(PSH_Join))),
             county = str_to_title(COUNTY),
             # Program 1 - Summary of all HUD Programs (634 PLACE entries with units, 422 reporting demographics) #
             total_units = sum(Pg1_total_units), 
@@ -213,8 +222,6 @@ place_PSH_Final <- place_PSH_Unmerged_Final %>%
             pg5_pct_reported = (sum(Pg5_number_reported)/sum(Pg5_total_units)*100),
             # Program 6 - RentSup/RAP (1 PLACE entry with units, 0 reporting demographics) # CUT THIS???
             pg6_units = sum(Pg6_total_units), 
-            pg6_reported = sum(Pg6_number_reported), 
-            pg6_pct_reported = (sum(Pg6_number_reported)/sum(Pg6_total_units)*100),
             # Program 7 - S236/BMIR (12 PLACE entries with units, 0 reporting demographics) # CUT THIS???
             pg7_units = sum(Pg7_total_units),
             pg7_reported = sum(Pg7_number_reported), 
@@ -228,49 +235,8 @@ place_PSH_Final <- place_PSH_Unmerged_Final %>%
             pg9_reported = sum(Pg9_number_reported), 
             pg9_pct_reported = (sum(Pg9_number_reported)/sum(Pg9_total_units)*100))
 
-place_PSH_Final <- filter(place_PSH_Final, !is.na(name))
+place_PSH_Final <- filter(place_PSH_Final, !is.na(county))
 
 write.csv(place_PSH_Final, 'place_PSH_Final.csv')
 
-#%>%
-#  summarise(units = sum(Pg1_total_units)) %>%
- # arrange(desc(units))
-
-
-
-
 ```
-
-```{r cars}
-Combining_Cousubs_So_Far = subset(place_PSH_Cousubs_So_Far, select = -c(gsl,states,sumlevel,sub_program,entities))
-
-Combined_Cousubs_So_Far <- pivot_wider(
-  Combining_Cousubs_So_Far,
-  id_cols = NULL,
-  names_from = program,
-  names_prefix = "",
-  names_sep = "_",
-  names_glue = "{program}_{.value}",
-  values_from = c(program_label,total_units,pct_occupied,number_reported,pct_reported,months_since_report,months_since_report,pct_movein,people_per_unit,people_total,rent_per_month,spending_per_month,hh_income,person_income,pct_lt5k,pct_5k_lt10k,pct_10k_lt15k,pct_15k_lt20k,pct_ge20k,pct_wage_major,pct_welfare_major,pct_other_major,pct_median,pct_lt50_median,pct_lt30_median,pct_2adults,pct_1adult,pct_female_head,pct_female_head_child,pct_disabled_lt62,pct_disabled_ge62,pct_disabled_all,pct_lt24_head,pct_age25_50,pct_age51_61,pct_age62plus,pct_age85plus,pct_minority,pct_black_nonhsp,pct_native_american_nonhsp,pct_asian_pacific_nonhsp,pct_white_nothsp,pct_black_hsp,pct_wht_hsp,pct_oth_hsp,pct_hispanic,pct_multi,months_waiting,months_from_movein,pct_utility_allow,ave_util_allow,pct_bed1,pct_bed2,pct_bed3,pct_overhoused,tpoverty,tminority,tpct_ownsfd),
-  names_sort = TRUE
-)
-
-prefixes <- unique(Combining_Cousubs_So_Far$program)
-
-names_to_order <- map(prefixes, ~ names(Combined_Cousubs_So_Far)[grep(paste0(.x,"_"), names(Combined_Cousubs_So_Far))]) %>% unlist
-names_id <- setdiff(names(Combined_Cousubs_So_Far), names_to_order)
-
-Combined_Cousubs_So_Far_Reordered <- Combined_Cousubs_So_Far %>%
-  select(names_id, names_to_order)
-
-```
-
-## Including Plots
-
-You can also embed plots, for example:
-
-```{r pressure, echo=FALSE}
-plot(pressure)
-```
-
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
