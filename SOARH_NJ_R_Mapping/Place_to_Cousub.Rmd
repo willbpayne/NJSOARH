@@ -188,7 +188,9 @@ place_PSH_noNAs <- place_PSH_Unmerged_Final %>% # this code drops all the demogr
     )
   )
 
-place_PSH_Final <- place_PSH_Unmerged_Final %>%
+place_PSH_noNAs
+
+place_PSH_Final <- place_PSH_noNAs %>%
   group_by(CENSUS2010) %>%
   summarise(count = n(), 
             name = ifelse(is.na(PSH_Join),
@@ -196,46 +198,55 @@ place_PSH_Final <- place_PSH_Unmerged_Final %>%
                   substr(PSH_Join,7,nchar(PSH_Join))),
             county = str_to_title(COUNTY),
             # Program 1 - Summary of all HUD Programs (634 PLACE entries with units, 422 reporting demographics) #
-            total_units = sum(Pg1_total_units), 
-            total_reported = sum(Pg1_number_reported),
-            total_pct_reported = (sum(Pg1_number_reported)/sum(Pg1_total_units)*100),
-            total_pct_occupied = (sum(Pg1_pct_occupied * Pg1_total_units))/sum(Pg1_total_units),
+            total_units = sum(Pg1_total_units, na.rm=TRUE), 
+            total_reported = sum(Pg1_number_reported, na.rm=TRUE),
+            total_pct_reported = (sum(Pg1_number_reported, na.rm=TRUE)/sum(Pg1_total_units, na.rm=TRUE)*100),
+            total_pct_occupied = (sum(Pg1_pct_occupied * Pg1_total_units, na.rm=TRUE))/sum(Pg1_total_units, na.rm=TRUE),
             # Program 2 - Public Housing (72 PLACE entries with units, 65 reporting demographics) #
-            pg2_units = sum(Pg2_total_units), 
-            pg2_reported = sum(Pg2_number_reported), 
-            pg2_pct_occupied = (sum(Pg2_pct_occupied * Pg2_total_units))/sum(Pg2_total_units),
+            pg2_units = sum(Pg2_total_units, na.rm=TRUE), 
+            pg2_reported = sum(Pg2_number_reported, na.rm=TRUE), 
+            pg2_pct_occupied = (sum(Pg2_pct_occupied * Pg2_total_units, na.rm=TRUE))/sum(Pg2_total_units, na.rm=TRUE),
             pg2_occupied_units = (pg2_units * pg2_pct_occupied)/100,
-            pg2_pct_reported = (sum(Pg2_number_reported)/sum(pg2_occupied_units)*100),
-            pg2_people_total = sum(Pg2_people_total),
-            pg2_people_per_unit = (sum(Pg2_people_total)/sum(pg2_occupied_units)),
+            pg2_pct_reported = (sum(Pg2_number_reported, na.rm=TRUE)/sum(pg2_occupied_units, na.rm=TRUE)*100),
+            pg2_months_since_report = (sum(pg2_units * Pg2_months_since_report, na.rm=TRUE))/sum(pg2_units, na.rm=TRUE),
+            pg2_people_total = sum(Pg2_people_total, na.rm=TRUE),
+            pg2_people_per_unit = (sum(Pg2_people_total, na.rm=TRUE)/sum(pg2_occupied_units, na.rm=TRUE)),
             # Program 3 - Housing Choice Vouchers (627 PLACE entries with units, 368 reporting demographics) #
-            pg3_units = sum(Pg3_total_units), 
-            pg3_reported = sum(Pg3_number_reported), 
-            pg3_pct_reported = (sum(Pg3_number_reported)/sum(Pg3_total_units)*100),
+            pg3_units = sum(Pg3_total_units, na.rm=TRUE), 
+            pg3_reported = sum(Pg3_number_reported, na.rm=TRUE), 
+            pg3_pct_reported = (sum(Pg3_number_reported, na.rm=TRUE)/sum(Pg3_total_units, na.rm=TRUE)*100),
+            pg3_pct_occupied = (sum(Pg3_pct_occupied * Pg3_total_units, na.rm=TRUE))/sum(Pg3_total_units, na.rm=TRUE),
+            pg3_occupied_units = (pg3_units * pg3_pct_occupied)/100,
+            pg3_pct_reported = (sum(Pg3_number_reported, na.rm=TRUE)/sum(pg3_occupied_units, na.rm=TRUE)*100),
+            pg3_months_since_report = sum((Pg3_total_units * Pg3_pct_occupied * Pg3_months_since_report), na.rm=TRUE)/sum((Pg3_total_units * Pg3_pct_occupied), na.rm=TRUE),
+            pg3_people_total = sum(Pg3_people_total, na.rm=TRUE),
+            pg3_people_per_unit = (sum(Pg3_people_total, na.rm=TRUE)/sum(pg3_occupied_units, na.rm=TRUE)),
             # Program 4 - Moderate Rehabilitation (13 PLACE entries with units, 8 reporting demographics) # CUT THIS??
-            pg4_units = sum(Pg4_total_units), 
-            pg4_reported = sum(Pg4_number_reported), 
-            pg4_pct_reported = (sum(Pg4_number_reported)/sum(Pg4_total_units)*100),
+            pg4_units = sum(Pg4_total_units, na.rm=TRUE), 
+            pg4_reported = sum(Pg4_number_reported, na.rm=TRUE), 
+            pg4_pct_reported = (sum(Pg4_number_reported, na.rm=TRUE)/sum(Pg4_total_units, na.rm=TRUE)*100),
             # Program 5 - Project Based Section 8 (224 PLACE entries with units, 155 reporting demographics) #
-            pg5_units = sum(Pg5_total_units), 
-            pg5_reported = sum(Pg5_number_reported), 
-            pg5_pct_reported = (sum(Pg5_number_reported)/sum(Pg5_total_units)*100),
+            pg5_units = sum(Pg5_total_units, na.rm=TRUE), 
+            pg5_reported = sum(Pg5_number_reported, na.rm=TRUE), 
+            pg5_pct_reported = (sum(Pg5_number_reported, na.rm=TRUE)/sum(Pg5_total_units, na.rm=TRUE)*100),
             # Program 6 - RentSup/RAP (1 PLACE entry with units, 0 reporting demographics) # CUT THIS???
-            pg6_units = sum(Pg6_total_units), 
+            pg6_units = sum(Pg6_total_units, na.rm=TRUE), 
             # Program 7 - S236/BMIR (12 PLACE entries with units, 0 reporting demographics) # CUT THIS???
-            pg7_units = sum(Pg7_total_units),
-            pg7_reported = sum(Pg7_number_reported), 
-            pg7_pct_reported = (sum(Pg7_number_reported)/sum(Pg7_total_units)*100),
+            pg7_units = sum(Pg7_total_units, na.rm=TRUE),
+            pg7_reported = sum(Pg7_number_reported, na.rm=TRUE), 
+            pg7_pct_reported = (sum(Pg7_number_reported, na.rm=TRUE)/sum(Pg7_total_units, na.rm=TRUE)*100),
             # Program 8 - 202/PRAC (60 PLACE entries with units, 50 reporting demographics) #
-            pg8_units = sum(Pg8_total_units), 
-            pg8_reported = sum(Pg8_number_reported), 
-            pg8_pct_reported = (sum(Pg8_number_reported)/sum(Pg8_total_units)*100),
+            pg8_units = sum(Pg8_total_units, na.rm=TRUE), 
+            pg8_reported = sum(Pg8_number_reported, na.rm=TRUE), 
+            pg8_pct_reported = (sum(Pg8_number_reported, na.rm=TRUE)/sum(Pg8_total_units, na.rm=TRUE)*100),
             # Program 9 - 811/PRACs (120 PLACE entries with units, 24 reporting demographics) #
-            pg9_units = sum(Pg9_total_units),
-            pg9_reported = sum(Pg9_number_reported), 
-            pg9_pct_reported = (sum(Pg9_number_reported)/sum(Pg9_total_units)*100))
+            pg9_units = sum(Pg9_total_units, na.rm=TRUE),
+            pg9_reported = sum(Pg9_number_reported, na.rm=TRUE), 
+            pg9_pct_reported = (sum(Pg9_number_reported, na.rm=TRUE)/sum(Pg9_total_units, na.rm=TRUE)*100))
 
-place_PSH_Final <- filter(place_PSH_Final, !is.na(county))
+place_PSH_Final <- filter(place_PSH_Final, !is.na(county)) # get rid of duplicate rows
+
+# replace all the infinite and NaN values with NA to avoid causing trouble with mapping?
 
 write.csv(place_PSH_Final, 'place_PSH_Final.csv')
 
