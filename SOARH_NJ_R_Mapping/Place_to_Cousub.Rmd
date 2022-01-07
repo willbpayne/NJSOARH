@@ -20,6 +20,8 @@ library(tidyverse)
 
 place_PSH <- read.csv(file = 'NJ_PLACE_2020_WP.csv')
 
+place_PSH <- subset(place_PSH, select = -c(gsl,states,sumlevel,sub_program,entities))
+
 place_PSH[place_PSH==-1]<-0 # replace -1 with 0 throughout (missing data)
 place_PSH[place_PSH==-4]<-NA # replace -4 with NA throughout (suppressed demographic data)
 place_PSH[place_PSH==-5]<-NA # replace -5 with NA throughout (reporting under 50% demographic data)
@@ -127,12 +129,12 @@ NJ_Munis_for_Matching$place <- substr(NJ_Munis_for_Matching$GISJOIN,7,11) # get 
 NJ_Munis_for_Matching$PSH_Join <- paste0(NJ_Munis_for_Matching$place," ",NJ_Munis_for_Matching$MUN_LABEL) # paste it to label
 
 # Remove the "Missing" row
-place_PSH_Cousubs_Missing <- filter(place_PSH_Cousubs_Already, place == 'XXXXX')
-place_PSH_Cousubs_Not_Missing <- filter(place_PSH_Cousubs_Already, !place == 'XXXXX')
+place_PSH_Cousubs_Missing <- filter(place_PSH_Cousubs_Already, code == '34XXXXX')
+place_PSH_Cousubs_Not_Missing <- filter(place_PSH_Cousubs_Already, !code == '34XXXXX')
 
 # Get the 99999s out
-place_PSH_Cousubs_Already_99999s <- filter(place_PSH_Cousubs_Not_Missing, place == '99999')
-place_PSH_Cousubs_Already_Valid <- filter(place_PSH_Cousubs_Not_Missing, !place == '99999')
+place_PSH_Cousubs_Already_99999s <- filter(place_PSH_Cousubs_Not_Missing, code == '3499999')
+place_PSH_Cousubs_Already_Valid <- filter(place_PSH_Cousubs_Not_Missing, !code == '3499999')
 
 place_PSH_Cousubs_Already_Valid$PSH_Join <- paste0(place_PSH_Cousubs_Already_Valid$place," ",place_PSH_Cousubs_Already_Valid$Join_Name)
 
@@ -181,13 +183,61 @@ write.csv(place_PSH_Unmerged_Final,'place_PSH_Unmerged_Final.csv')
 
 place_PSH_Final <- place_PSH_Unmerged_Final %>%
   group_by(CENSUS2010) %>%
-  summarise(count = n(), units = sum(Pg1_total_units))
+  summarise(count = n(), 
+            name = substr(PSH_Join,7,nchar(PSH_Join)),
+            county = str_to_title(COUNTY),
+            # Program 1 - Summary of all HUD Programs (634 PLACE entries with units, 422 reporting demographics) #
+            total_units = sum(Pg1_total_units), 
+            total_reported = sum(Pg1_number_reported),
+            total_pct_reported = (sum(Pg1_number_reported)/sum(Pg1_total_units)*100),
+            total_pct_occupied = (sum(Pg1_pct_occupied * Pg1_total_units))/sum(Pg1_total_units),
+            # Program 2 - Public Housing (72 PLACE entries with units, 65 reporting demographics) #
+            pg2_units = sum(Pg2_total_units), 
+            pg2_reported = sum(Pg2_number_reported), 
+            pg2_pct_occupied = (sum(Pg2_pct_occupied * Pg2_total_units))/sum(Pg2_total_units),
+            pg2_occupied_units = (pg2_units * pg2_pct_occupied)/100,
+            pg2_pct_reported = (sum(Pg2_number_reported)/sum(pg2_occupied_units)*100),
+            pg2_people_total = sum(Pg2_people_total),
+            pg2_people_per_unit = (sum(Pg2_people_total)/sum(pg2_occupied_units)),
+            # Program 3 - Housing Choice Vouchers (627 PLACE entries with units, 368 reporting demographics) #
+            pg3_units = sum(Pg3_total_units), 
+            pg3_reported = sum(Pg3_number_reported), 
+            pg3_pct_reported = (sum(Pg3_number_reported)/sum(Pg3_total_units)*100),
+            # Program 4 - Moderate Rehabilitation (13 PLACE entries with units, 8 reporting demographics) # CUT THIS??
+            pg4_units = sum(Pg4_total_units), 
+            pg4_reported = sum(Pg4_number_reported), 
+            pg4_pct_reported = (sum(Pg4_number_reported)/sum(Pg4_total_units)*100),
+            # Program 5 - Project Based Section 8 (224 PLACE entries with units, 155 reporting demographics) #
+            pg5_units = sum(Pg5_total_units), 
+            pg5_reported = sum(Pg5_number_reported), 
+            pg5_pct_reported = (sum(Pg5_number_reported)/sum(Pg5_total_units)*100),
+            # Program 6 - RentSup/RAP (1 PLACE entry with units, 0 reporting demographics) # CUT THIS???
+            pg6_units = sum(Pg6_total_units), 
+            pg6_reported = sum(Pg6_number_reported), 
+            pg6_pct_reported = (sum(Pg6_number_reported)/sum(Pg6_total_units)*100),
+            # Program 7 - S236/BMIR (12 PLACE entries with units, 0 reporting demographics) # CUT THIS???
+            pg7_units = sum(Pg7_total_units),
+            pg7_reported = sum(Pg7_number_reported), 
+            pg7_pct_reported = (sum(Pg7_number_reported)/sum(Pg7_total_units)*100),
+            # Program 8 - 202/PRAC (60 PLACE entries with units, 50 reporting demographics) #
+            pg8_units = sum(Pg8_total_units), 
+            pg8_reported = sum(Pg8_number_reported), 
+            pg8_pct_reported = (sum(Pg8_number_reported)/sum(Pg8_total_units)*100),
+            # Program 9 - 811/PRACs (120 PLACE entries with units, 24 reporting demographics) #
+            pg9_units = sum(Pg9_total_units),
+            pg9_reported = sum(Pg9_number_reported), 
+            pg9_pct_reported = (sum(Pg9_number_reported)/sum(Pg9_total_units)*100))
+
+place_PSH_Final <- filter(place_PSH_Final, !is.na(name))
 
 write.csv(place_PSH_Final, 'place_PSH_Final.csv')
 
 #%>%
 #  summarise(units = sum(Pg1_total_units)) %>%
  # arrange(desc(units))
+
+
+
 
 ```
 
