@@ -1,0 +1,253 @@
+---
+title: "Inspection_Score_Synthesis"
+author: "Will P"
+date: "5/31/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE, echo = FALSE}
+require("knitr")
+opts_knit$set(root.dir = "/Users/willbpayne/Library/CloudStorage/Box-Box/")
+```
+
+```{r setup, include=FALSE, echo = FALSE}
+getwd()
+
+library(readxl)
+library(sf) # use this to read geojsons and shapefiles
+library(tmap) # use this to map them
+library(dplyr) # use this to join and manipulate data frames
+library(tidyverse)
+
+#2011 Data
+
+multifamily_2011 <- read_excel('/Users/willbpayne/Library/CloudStorage/Box-Box/NJSOARH/Data/HUD Physical Inspection Scores/2011/multifamily_physical_inspection_scores_2011.xls')
+
+public_housing_2011 <- read_excel('/Users/willbpayne/Library/CloudStorage/Box-Box/NJSOARH/Data/HUD Physical Inspection Scores/2011/public_housing_physical_inspection_scores_2011.xls')
+
+nj_multifamily_2011 <- filter(multifamily_2011, state_name == 'NJ') # extract NJ inspection results only
+nj_public_housing_2011 <- filter(public_housing_2011, state_name == 'NJ') # extract NJ inspection results only
+
+names(nj_multifamily_2011) <- toupper(names(nj_multifamily_2011))
+names(nj_public_housing_2011) <- toupper(names(nj_public_housing_2011))
+
+rm(multifamily_2011,public_housing_2011)
+
+#2015 Data
+
+multifamily_2015 <- read_excel('/Users/willbpayne/Library/CloudStorage/Box-Box/NJSOARH/Data/HUD Physical Inspection Scores/2015/multifamily_physical_inspection_scores.xlsx')
+
+public_housing_2015 <- read_excel('/Users/willbpayne/Library/CloudStorage/Box-Box/NJSOARH/Data/HUD Physical Inspection Scores/2015/public_housing_physical_inspection_scores.xlsx')
+
+nj_multifamily_2015 <- filter(multifamily_2015, STATE_NAME == 'NJ') # extract NJ inspection results only
+nj_public_housing_2015 <- filter(public_housing_2015, STATE_NAME == 'NJ') # extract NJ inspection results only
+
+names(nj_public_housing_2015)[names(nj_public_housing_2015) == 'DEVELPMENT_NAME'] <- 'PROPERTY_NAME'
+names(nj_public_housing_2015)[names(nj_public_housing_2015) == 'DEVLOPMENT_ID'] <- 'PROPERTY_ID'
+
+rm(multifamily_2015,public_housing_2015)
+
+#2016 Data
+
+multifamily_2016 <- read_excel('/Users/willbpayne/Library/CloudStorage/Box-Box/NJSOARH/Data/HUD Physical Inspection Scores/2016/multifamily-physical-inspection-scores-2016.xlsx')
+
+public_housing_2016 <- read_excel('/Users/willbpayne/Library/CloudStorage/Box-Box/NJSOARH/Data/HUD Physical Inspection Scores/2016/public-housing-physical-inspection-scores-2016.xlsx')
+
+nj_multifamily_2016 <- filter(multifamily_2016, STATE_NAME == 'NJ') # extract NJ inspection results only
+nj_public_housing_2016 <- filter(public_housing_2016, STATE_NAME == 'NJ') # extract NJ inspection results only
+
+names(nj_public_housing_2016)[names(nj_public_housing_2016) == 'DEVELOPMENT_NAME'] <- 'PROPERTY_NAME'
+names(nj_public_housing_2016)[names(nj_public_housing_2016) == 'DEVELOPMENT_ID'] <- 'PROPERTY_ID'
+
+rm(multifamily_2016,public_housing_2016)
+
+#2018 Data
+
+multifamily_2018 <- read_excel('/Users/willbpayne/Library/CloudStorage/Box-Box/NJSOARH/Data/HUD Physical Inspection Scores/2018/multifamily-physical-inspection-scores-2018.xlsx')
+
+public_housing_2018 <- read_excel('/Users/willbpayne/Library/CloudStorage/Box-Box/NJSOARH/Data/HUD Physical Inspection Scores/2018/public-housing-physical-inspection-scores-2018.xlsx')
+
+nj_multifamily_2018 <- filter(multifamily_2018, STATE_CODE == 'NJ') # extract NJ inspection results only
+nj_public_housing_2018 <- filter(public_housing_2018, STATE_CODE == 'NJ') # extract NJ inspection results only
+
+names(nj_multifamily_2018)[names(nj_multifamily_2018) == 'STATE_CODE'] <- 'STATE_NAME'
+names(nj_multifamily_2018)[names(nj_multifamily_2018) == 'FIPS_STATE_CODE'] <- 'STATE_CODE'
+
+names(nj_public_housing_2018)[names(nj_public_housing_2018) == 'STATE_CODE'] <- 'STATE_NAME'
+names(nj_public_housing_2018)[names(nj_public_housing_2018) == 'FIPS_STATE_CODE'] <- 'STATE_CODE'
+
+names(nj_public_housing_2018)[names(nj_public_housing_2018) == 'DEVELOPMENT_NAME'] <- 'PROPERTY_NAME'
+names(nj_public_housing_2018)[names(nj_public_housing_2018) == 'DEVELOPMENT_ID'] <- 'PROPERTY_ID'
+
+rm(multifamily_2018,public_housing_2018)
+
+#2019 Data
+
+multifamily_2019 <- read_excel('/Users/willbpayne/Library/CloudStorage/Box-Box/NJSOARH/Data/HUD Physical Inspection Scores/2019/multifamily-physical-inspection-scores-2019.xlsx')
+
+public_housing_2019 <- read_excel('/Users/willbpayne/Library/CloudStorage/Box-Box/NJSOARH/Data/HUD Physical Inspection Scores/2019/public-housing-physical-inspection-scores-2019.xlsx')
+
+nj_multifamily_2019 <- filter(multifamily_2019, STATE_CODE == 'NJ') # extract NJ inspection results only
+nj_public_housing_2019 <- filter(public_housing_2019, STATE_CODE == 'NJ') # extract NJ inspection results only
+
+names(nj_multifamily_2019)[names(nj_multifamily_2019) == 'STATE_CODE'] <- 'STATE_NAME'
+names(nj_multifamily_2019)[names(nj_multifamily_2019) == 'FIPS_STATE_CODE'] <- 'STATE_CODE'
+
+names(nj_public_housing_2019)[names(nj_public_housing_2019) == 'STATE_CODE'] <- 'STATE_NAME'
+names(nj_public_housing_2019)[names(nj_public_housing_2019) == 'FIPS_STATE_CODE'] <- 'STATE_CODE'
+
+names(nj_public_housing_2019)[names(nj_public_housing_2019) == 'DEVELOPMENT_NAME'] <- 'PROPERTY_NAME'
+names(nj_public_housing_2019)[names(nj_public_housing_2019) == 'DEVELOPMENT_ID'] <- 'PROPERTY_ID'
+
+rm(multifamily_2019,public_housing_2019)
+
+#2020 Data
+
+multifamily_2020 <- read_excel('/Users/willbpayne/Library/CloudStorage/Box-Box/NJSOARH/Data/HUD Physical Inspection Scores/2020/multifamily_physical_inspection_scores_0620.xlsx')
+
+public_housing_2020 <- read_excel('/Users/willbpayne/Library/CloudStorage/Box-Box/NJSOARH/Data/HUD Physical Inspection Scores/2020/public_housing_physical_inspection_scores_0620.xlsx')
+
+nj_multifamily_2020 <- filter(multifamily_2020, STATE_NAME == 'NJ') # extract NJ inspection results only
+nj_public_housing_2020 <- filter(public_housing_2020, STATE_NAME == 'NJ') # extract NJ inspection results only
+
+names(nj_multifamily_2020)[names(nj_multifamily_2020) == 'ZIPCODE'] <- 'ZIP'
+names(nj_public_housing_2020)[names(nj_public_housing_2020) == 'ZIPCODE'] <- 'ZIP'
+
+names(nj_public_housing_2020)[names(nj_public_housing_2020) == 'DEVELOPMENT_NAME'] <- 'PROPERTY_NAME'
+names(nj_public_housing_2020)[names(nj_public_housing_2020) == 'DEVELOPMENT_ID'] <- 'PROPERTY_ID'
+
+rm(multifamily_2020,public_housing_2020)
+
+#2021 Data
+
+multifamily_2021 <- read_excel('/Users/willbpayne/Library/CloudStorage/Box-Box/NJSOARH/Data/HUD Physical Inspection Scores/2021/multifamily_physical_inspection_scores_0321.xlsx')
+
+public_housing_2021 <- read_excel('/Users/willbpayne/Library/CloudStorage/Box-Box/NJSOARH/Data/HUD Physical Inspection Scores/2021/public_housing_physical_inspection_scores_0321.xlsx')
+
+nj_multifamily_2021 <- filter(multifamily_2021, STATE_NAME == 'NJ') # extract NJ inspection results only
+nj_public_housing_2021 <- filter(public_housing_2021, STATE_NAME == 'NJ') # extract NJ inspection results only
+
+names(nj_public_housing_2021)[names(nj_public_housing_2021) == 'DEVELOPMENT_NAME'] <- 'PROPERTY_NAME'
+names(nj_public_housing_2021)[names(nj_public_housing_2021) == 'DEVELOPMENT_ID'] <- 'PROPERTY_ID'
+
+names(nj_multifamily_2021)[names(nj_multifamily_2021) == 'ZIPCODE'] <- 'ZIP'
+names(nj_public_housing_2021)[names(nj_public_housing_2021) == 'ZIPCODE'] <- 'ZIP'
+
+rm(multifamily_2021,public_housing_2021)
+
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r cars}
+summary(cars)
+getwd()
+
+# add null values to the two variables missing in 2011 to allow join
+nj_multifamily_2011$INSPECTION_ID <- NA
+nj_multifamily_2011$LOCATION_QUALITY <- NA
+
+# standardize the many different date formats
+nj_multifamily_2011$INSPECTION_DATE <- as.Date(nj_multifamily_2011$INSPECTION_DATE, format = "%m/%d/%Y")
+nj_multifamily_2015$INSPECTION_DATE <- as.Date(nj_multifamily_2015$INSPECTION_DATE, format = "%m/%d/%Y")
+nj_multifamily_2016$INSPECTION_DATE <- as.Date(nj_multifamily_2016$INSPECTION_DATE, format = "%Y-%m-%d")
+nj_multifamily_2018$INSPECTION_DATE <- as.Date(nj_multifamily_2018$INSPECTION_DATE, format = "%Y-%m-%d")
+nj_multifamily_2019$INSPECTION_DATE <- as.Date(nj_multifamily_2019$INSPECTION_DATE, format = "%Y-%m-%d")
+nj_multifamily_2020$INSPECTION_DATE <- as.Date(nj_multifamily_2020$INSPECTION_DATE, format = "%d-%b-%y")
+nj_multifamily_2021$INSPECTION_DATE <- as.Date(nj_multifamily_2021$INSPECTION_DATE, format = "%Y-%m-%d")
+
+# stitch the multifamily together
+nj_multifamily_2011_to_2021 <- rbind(nj_multifamily_2011, nj_multifamily_2015, nj_multifamily_2016, nj_multifamily_2018, nj_multifamily_2019, nj_multifamily_2020, nj_multifamily_2021)
+
+# add three variables for the joining to the public housing inspections
+nj_multifamily_2011_to_2021$TYPE <- "Multifamily"
+nj_multifamily_2011_to_2021$PHA_NAME <- NA
+nj_multifamily_2011_to_2021$PHA_CODE <- NA
+
+# add null values to the two variables missing in 2011 to allow join
+nj_public_housing_2011$INSPECTION_ID <- NA
+nj_public_housing_2011$LOCATION_QUALITY <- NA
+
+# standardize the many different date formats
+nj_public_housing_2011$INSPECTION_DATE <- as.Date(nj_public_housing_2011$INSPECTION_DATE, format = "%m/%d/%Y")
+nj_public_housing_2015$INSPECTION_DATE <- as.Date(nj_public_housing_2015$INSPECTION_DATE, format = "%m/%d/%Y")
+nj_public_housing_2016$INSPECTION_DATE <- as.Date(nj_public_housing_2016$INSPECTION_DATE, format = "%Y-%m-%d")
+nj_public_housing_2018$INSPECTION_DATE <- as.Date(nj_public_housing_2018$INSPECTION_DATE, format = "%Y-%m-%d")
+nj_public_housing_2019$INSPECTION_DATE <- as.Date(nj_public_housing_2019$INSPECTION_DATE, format = "%Y-%m-%d")
+nj_public_housing_2020$INSPECTION_DATE <- as.Date(nj_public_housing_2020$INSPECTION_DATE, format = "%d-%b-%y")
+nj_public_housing_2021$INSPECTION_DATE <- as.Date(nj_public_housing_2021$INSPECTION_DATE, format = "%Y-%m-%d")
+
+# stitch the public housing together
+nj_public_housing_2011_to_2021 <- rbind(nj_public_housing_2011, nj_public_housing_2015, nj_public_housing_2016, nj_public_housing_2018, nj_public_housing_2019, nj_public_housing_2020, nj_public_housing_2021)
+
+# add one variable for the joining to the multifamily inspections
+nj_public_housing_2011_to_2021$TYPE <- "Public Housing"
+
+# join them all together
+hud_nj_inspections_2011_to_2021 <- rbind(nj_public_housing_2011_to_2021,nj_multifamily_2011_to_2021)
+
+table(hud_nj_inspections_2011_to_2021$LOCATION_QUALITY)
+
+# NEXT COMES DEDUPLICATION
+
+hud_nj_inspections_2011_to_2021_deduped <- hud_nj_inspections_2011_to_2021[!duplicated(hud_nj_inspections_2011_to_2021[c("PROPERTY_ID","INSPECTION_DATE")]),]
+
+table(hud_nj_inspections_2011_to_2021_deduped$LOCATION_QUALITY)
+
+head(hud_nj_inspections_2011_to_2021_deduped)
+
+
+hud_nj_inspections_2011_to_2021_deduped$INSPECTION_SCORE <- as.numeric(hud_nj_inspections_2011_to_2021_deduped$INSPECTION_SCORE)
+
+
+
+library(dplyr)
+hud_nj_inspections_2011_to_2021_by_property <- hud_nj_inspections_2011_to_2021_deduped %>%
+  dplyr::group_by(PROPERTY_ID, PROPERTY_NAME, ADDRESS, TYPE) %>%
+  summarize(INSPECTIONS = n(), 
+            MEAN_SCORE = mean(INSPECTION_SCORE), 
+            MEDIAN_SCORE = median(INSPECTION_SCORE),
+            MOST_RECENT_INSPECTION = max(INSPECTION_DATE),
+            OLDEST_INSPECTION = min(INSPECTION_DATE))
+
+hud_nj_inspections_2011_to_2021_by_property$INSPECTION_INTERVAL <- 20/hud_nj_inspections_2011_to_2021_by_property$INSPECTIONS
+
+# 638 rows with address issues
+address_issues_inspections <- hud_nj_inspections_2011_to_2021_by_property %>% group_by(PROPERTY_ID) %>% filter(n()>1) 
+
+
+```
+
+## Including Plots
+
+You can also embed plots, for example:
+
+```{r pressure, echo=FALSE}
+plot(pressure)
+
+nj_multifamily_2011$INSPECTION_DATE <- as.Date(nj_multifamily_2011$INSPECTION_DATE, format = "%m/%d/%Y")
+nj_multifamily_2015$INSPECTION_DATE <- as.Date(nj_multifamily_2015$INSPECTION_DATE, format = "%m/%d/%Y")
+nj_multifamily_2016$INSPECTION_DATE <- as.Date(nj_multifamily_2016$INSPECTION_DATE, format = "%Y-%m-%d")
+nj_multifamily_2018$INSPECTION_DATE <- as.Date(nj_multifamily_2018$INSPECTION_DATE, format = "%Y-%m-%d")
+nj_multifamily_2019$INSPECTION_DATE <- as.Date(nj_multifamily_2019$INSPECTION_DATE, format = "%Y-%m-%d")
+nj_multifamily_2020$INSPECTION_DATE <- as.Date(nj_multifamily_2020$INSPECTION_DATE, format = "%d-%b-%y")
+nj_multifamily_2021$INSPECTION_DATE <- as.Date(nj_multifamily_2021$INSPECTION_DATE, format = "%Y-%m-%d")
+
+typeof(nj_multifamily_2021$INSPECTION_DATE)
+head(nj_multifamily_2021$INSPECTION_DATE)
+as.Date(nj_multifamily_2021$INSPECTION_DATE, format = "%Y-%m-%d")
+
+head(nj_multifamily_2021)
+
+#rm(nj_multifamily_2011, nj_multifamily_2015, nj_multifamily_2016, nj_multifamily_2018, nj_multifamily_2019, nj_multifamily_2020, nj_multifamily_2021)
+
+#rm(nj_public_housing_2011, nj_public_housing_2015, nj_public_housing_2016, nj_public_housing_2018, nj_public_housing_2019, nj_public_housing_2020, nj_public_housing_2021)
+
+
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
