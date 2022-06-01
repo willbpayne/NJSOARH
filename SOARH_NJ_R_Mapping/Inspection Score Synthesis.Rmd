@@ -207,7 +207,7 @@ hud_nj_inspections_2011_to_2021_deduped$INSPECTION_SCORE <- as.numeric(hud_nj_in
 
 library(dplyr)
 hud_nj_inspections_2011_to_2021_by_property <- hud_nj_inspections_2011_to_2021_deduped %>%
-  dplyr::group_by(PROPERTY_ID, PROPERTY_NAME, ADDRESS, TYPE) %>%
+  dplyr::group_by(PROPERTY_ID, PROPERTY_NAME, ADDRESS, CITY, TYPE) %>%
   summarize(INSPECTIONS = n(), 
             MEAN_SCORE = mean(INSPECTION_SCORE), 
             MEDIAN_SCORE = median(INSPECTION_SCORE),
@@ -219,6 +219,44 @@ hud_nj_inspections_2011_to_2021_by_property$INSPECTION_INTERVAL <- 20/hud_nj_ins
 # 638 rows with address issues
 address_issues_inspections <- hud_nj_inspections_2011_to_2021_by_property %>% group_by(PROPERTY_ID) %>% filter(n()>1) 
 
+plot(hud_nj_inspections_2011_to_2021_by_property$MEAN_SCORE, hud_nj_inspections_2011_to_2021_by_property$INSPECTIONS) +
+abline(lm(hud_nj_inspections_2011_to_2021_by_property$INSPECTIONS ~ hud_nj_inspections_2011_to_2021_by_property$MEAN_SCORE, data = hud_nj_inspections_2011_to_2021_by_property), col = "blue")
+
+library(hrbrthemes)
+
+plotyearly <- ggplot(hud_nj_inspections_2011_to_2021_by_property, aes(x=MEAN_SCORE, y=INSPECTIONS)) + 
+geom_smooth(method = "loess", se = TRUE, fill='gray', color='gray', size=1.5) + scale_size_continuous(range = c(2,10)) + 
+geom_point() + theme_ipsum_rc() + ggtitle("HUD Inspections in NJ 2000-2020 by Mean Score") +
+theme(plot.title = element_text(hjust = 0.5)) + theme_ipsum_rc() +
+  theme(plot.title = element_text(size = 36),
+  plot.subtitle = element_text(size = 24),
+  plot.caption = element_text(size = 12, face = "italic"),
+  axis.title.x = element_text(size = 16, face = "bold"),
+  axis.text.x = element_text(size = 14),
+  axis.title.y = element_text(size = 16, face = "bold"),
+  legend.title=element_text(size=18), 
+  legend.text=element_text(size=16)
+)
+
+plotyearly
+
++
+scale_x_continuous(name = "Year", breaks = seq(minyear, 2020, 1), limits = c(minyear,2020)) + 
+scale_y_continuous(name = "Average Rating by Type", breaks = seq(1, 5, 1), limits = c(1,5)) + 
+scale_color_manual(values = c("Recommended" = "#9EA900", "Not_Recommended" = "#EBB600", "Removed" = '#FF1C2D'), name = "Review Type", limits = c("Recommended", "Not_Recommended", "Removed"), labels = c("Recommended (Public)", "Not Recommended (Filtered)", "Removed (Metadata Only)")) +
+labs(size = "Number of Reviews") + 
+guides(colour = guide_legend(override.aes = list(size=5))) +
+ggtitle(paste("Yelp Ratings Over Time:",Business_Name)) +
+theme(plot.title = element_text(hjust = 0.5)) + theme_ipsum_rc() +
+  theme(plot.title = element_text(size = 36),
+  plot.subtitle = element_text(size = 24),
+  plot.caption = element_text(size = 12, face = "italic"),
+  axis.title.x = element_text(size = 16, face = "bold"),
+  axis.text.x = element_text(size = 14),
+  axis.title.y = element_text(size = 16, face = "bold"),
+  legend.title=element_text(size=18), 
+  legend.text=element_text(size=16)
+)
 
 ```
 
