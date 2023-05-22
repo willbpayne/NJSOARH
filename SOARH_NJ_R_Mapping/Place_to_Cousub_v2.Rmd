@@ -112,11 +112,8 @@ glimpse(CDP_to_Cousub_Mapping)
 CDP_to_Cousub_Mapping <- filter(CDP_to_Cousub_Mapping, MUNI_MUN_LABEL != 'Byram Township') # remove one of the ambiguous CDPs since all housing units are in Sparta Township
 
 place_PSH_CDPs_with_Munis <- left_join(place_PSH_CDPs, CDP_to_Cousub_Mapping, by = "code") # put them together
-
 place_PSH_CDPs_Manual <- filter(place_PSH_CDPs_with_Munis, is.na(MUNI_MUN_LABEL))
-
 place_PSH_CDPs_with_Munis <- filter(place_PSH_CDPs_with_Munis, !is.na(MUNI_MUN_LABEL))
-
 place_PSH_CDPs_with_Munis$CENSUS2010 <- place_PSH_CDPs_with_Munis$MUNI_CENSUS2010 # need a common join field later
 
 rm(place_PSH_CDPs, place_PSH_CDPs_Manual) # get rid of earlier issues

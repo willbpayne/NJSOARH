@@ -1,0 +1,243 @@
+PROPERTY_ID,PROPERTY_NAME,ADDRESS,CITY,INSPECTIONS,MEAN_SCORE,MEDIAN_SCORE,MOST_RECENT_INSPECTION,OLDEST_INSPECTION
+800013917,Allen Young Apartments,300 Central Ave,Plainfield,9,74.88888889,77,9/26/18,1/2/01
+800013922,Atlantic City Consumer Home,45 N Kingston Ave,Atlantic City,5,75.4,77,2/24/20,1/25/01
+800013942,Aspen Belmont B,399 Belmont Ave,Belleville,1,45,45,10/24/17,10/24/17
+800013942,Aspen Belmont B,399-400 Belmont Avenue,Newark,7,75.42857143,77,9/24/13,9/1/00
+800013942,Aspen Belmont B,,Newark,1,67,67,9/30/15,9/30/15
+800013946,Aspen Stratford A,2 Stratford Pl,Newark,7,75.57142857,77,10/22/15,11/22/00
+800013952,Atlantic Villas,800 N Maryland Ave,Atlantic City,5,87.2,89,12/23/10,11/9/00
+800013968,Bayshore Village,Shoal Harbor Ct,Port Monmouth,4,80.25,82.5,7/2/10,11/30/00
+800013979,Bethany Manor I /A.k.a.st. John's Methodist Church,500 Broad St,Keyport,5,86.6,83,8/26/15,7/17/01
+800013983,Felicity Towers,100 Llewellyn Ave,Bloomfield,3,84,89,2/11/14,10/3/03
+800014016,Carroll Street Apartments,47 Carroll St,Paterson,9,64.33333333,66,1/22/19,1/24/01
+800014034,Carmel Towers,440 Elizabeth Ave,Newark,7,48.57142857,41,8/18/10,12/21/00
+800014042,Cedarbrook Park Apts,1272 Park Ave,Plainfield,5,85.2,84,6/27/16,6/10/02
+800014043,Center City Co. 3,2 Stratford Pl,Newark,1,51,51,4/10/14,4/10/14
+800014043,Center City Co. 3,37 Brunswick St,Newark,6,71.33333333,76.5,9/12/17,11/2/00
+800014044,Center City Hsg 9,40 W Kinney St,Newark,9,78,84,9/26/17,11/2/00
+800014046,Center City Housing 9c,1007 Broad St,Newark,4,87.5,90,10/19/06,11/6/00
+800014062,Clinton Hill Villa,293 Hawthorne Ave,Newark,1,,,,
+800014066,Greenwood Townhouses East,1030 Grove Ave,Edison,4,82.5,81.5,9/17/18,10/16/02
+800014082,Dale Avenue Apartments,41 Prince St,Paterson,8,76.625,78,8/24/09,10/10/00
+800014093,The Brookside,777 Springdale Ave,East Orange,6,75.66666667,75.5,9/16/13,7/18/02
+800014094,Echo Housing Demonstration Program,350 Marshall St,Phillipsburg,1,69,69,9/11/14,9/11/14
+800014094,Echo Housing Demonstration Program,400 Spring St,Belvidere,2,91.5,91.5,9/10/18,12/14/15
+800014094,Echo Housing Demonstration Program,48 Ridgeway Avenue,Hope,3,95,95,5/13/10,7/23/03
+800014102,East Orange Comm Homes-C,317 William St,East Orange,8,46.125,43.5,1/19/11,1/18/01
+800014112,Elizabeth Center Apartments,809 Pearl St,Elizabeth,9,77.55555556,83,12/6/18,11/13/00
+800014118,Up With Housing,70 Jay St,Englewood,9,75,76,2/17/16,9/22/00
+800014139,Glassboro Supervised Apartments,32 Reading St,Glassboro,7,81.28571429,85,8/19/19,12/7/00
+800014142,Gov Paterson Tower Iii,211 20th Ave,Paterson,4,86.5,85,12/15/15,7/24/03
+800014145,Grandview Apts,104 Carr Ave,Keansburg,2,91,91,10/20/03,12/19/00
+800014147,Greater  Englewood,1 Rock Creek Ter,Englewood,7,71.57142857,70,5/25/16,1/4/01
+800014148,Greenwood Townhouses,Inman & Graham Ave,Edison,6,76.33333333,74,10/4/18,8/17/01
+800014172,High Park Terrace Cooperative,36 Muhammad Ali Ave,Newark,4,58.75,55.5,8/12/03,11/15/00
+800014175,High  Spruce Apartments,730 742 Mlk Blvd,Newark,4,43,40.5,8/16/04,8/22/01
+800014176,High Street Senior Apartments,315 High St,Perth Amboy,6,85.33333333,84,4/25/16,12/8/00
+800014176,Thomas Natchuras Apartments,315 High St,Perth Amboy,1,83,83,8/20/19,8/20/19
+800014178,Hill Manor Apts,611 Martin Luther King Jr Blvd,Newark,1,,,,
+800014197,Jefferson Manor I,36 Hoover Ave,Passaic,5,72,67,2/22/07,5/18/01
+800014198,Jefferson Manor Ii,144 Jefferson St,Passaic,6,79.66666667,78,12/17/09,10/11/00
+800014204,Johnson Apts A,23 Johnson Ave,Newark,9,75,75,7/20/17,11/24/00
+800014206,Kuzuri-Kijiji,19 Freeway Dr E,East Orange,5,67.8,71,8/30/07,12/14/00
+800014214,Kingsbury Twin Towers,1 Kingsbury Sq,Trenton,7,75.28571429,76,10/1/13,11/28/00
+800014222,Lambert Homes,May Court Lee Terrace & Joyce Kilmer Ave.,New Brunswick,8,65.25,68.5,9/25/17,8/30/02
+800014240,Mciver Homes,111 S Munn Ave,East Orange,6,67.66666667,64,5/29/19,8/28/03
+800014270,Mount Ephraim House,406 Bell Rd,Mount Ephraim,5,86.2,87,5/17/17,10/10/01
+800014284,New Community Homes,200 S Orange Ave,Newark,6,45.16666667,49.5,12/12/07,12/20/00
+800014325,Ocean Towers,425 Ocean Ave,Jersey City,5,89.2,89,11/20/17,7/25/03
+800014335,Pilgrim Baptist Village Ii,446 Bergen St,Newark,10,56.5,61.5,1/9/19,7/10/01
+800014354,Federation  Apartments,510 E 27th St,Paterson,6,82,85.5,11/29/18,12/27/00
+800014356,Paulus Hook,100 Montgomery St,Jersey City,4,74.75,75,9/17/07,6/21/01
+800014369,Pitman Manor,535 N Oak Ave,Pitman,7,69.71428571,71,10/29/14,11/23/04
+800014376,Poplar Village,67 Skinner Dr,Oakhurst,4,90.5,90,12/27/13,1/17/01
+800014385,Pueblo City Housing,86 Brunswick St,Newark,9,55.66666667,60,8/23/17,12/26/00
+800014390,Pinewood Hall,250 W 2nd Ave,Roselle,7,86.28571429,82,3/13/20,8/2/01
+800014427,Shalom-Clemente Towers/Aka/Shalom Towers,75-95 Clinton Ave,Newark,7,79.28571429,91,11/1/18,11/22/00
+800014429,Si-Hy Apartments,2201 Murray Ave,Atlantic City,6,79.66666667,80.5,1/3/11,11/16/00
+800014441,South Village I,312 Lalor St,Trenton,6,85.83333333,90,9/24/13,6/28/02
+800014442,South Village Ii,2866 Stokely Ave,Trenton,6,81.5,88.5,11/18/10,10/2/02
+800014451,Summit Plaza Apartments I,625 Summit Ave,Jersey City,5,90,88,10/17/14,10/16/00
+800014456,Tarklin Park,364 Axtell Ave,Vineland,5,85.4,84,5/13/16,10/17/00
+800014463,Town House Terrace West,732 N Maryland Ave,Atlantic City,4,91,92,12/9/08,11/13/00
+800014465,Townhouse Terrace East Ii,925 Caspian Ave,Atlantic City,3,91.66666667,90,9/24/14,10/11/01
+800014472,University  Court,419 Washington St,Newark,3,,,,
+800014474,Unico Towers,500 Manila Ave,Jersey City,1,88,88,10/15/18,10/15/18
+800014474,Unico Towers / Aka/ Grove Street,500 Manila Ave,Jersey City,3,95.33333333,95,1/18/08,12/22/00
+800014491,John P. Renna House,10 Gaston St,West Orange,1,81,81,2/4/14,2/4/14
+800014491,West Orange Senior Citizens Housing,10 Gaston St,West Orange,3,81.66666667,87,11/5/07,9/5/03
+800014492,Oakview,1701 E Broad St,Millville,8,76.75,79.5,3/7/17,12/27/00
+800014493,Wade Manor,117 Wade St,Jersey City,1,,,,
+800014496,Washington Dodd Apartments Ii,587 Carroll St,Orange,2,86.5,86.5,8/5/04,5/17/01
+800014497,Washington Dodd Apartments I,587 Carroll St,Orange,2,92,92,8/5/04,5/24/01
+800014501,Wayne Senior Citizens,100 Runnymede Dr,Wayne,4,92.75,93,12/17/18,7/9/02
+800014525,Zion Towers,515 Elizabeth Ave,Newark,7,59,57,7/28/16,12/5/00
+800014526,151-161 Railroad Ave,151 Railroad Ave,Jersey City,3,40.33333333,40,10/30/02,12/26/00
+800014528,60-62 Division Street,60 Division St # 62,Elizabeth,7,67.28571429,72,8/14/18,11/13/00
+800024159,Trent Center West,465 Greenwood Ave,Trenton,3,71.66666667,62,5/3/19,12/10/13
+800029373,Chestnut Hill Convalescent Center,360 Chestnut St,Passaic,1,63,63,2/25/16,2/25/16
+800029415,Presidential Plaza At Newport - Section I,35 River Dr S,Jersey City,1,71,71,6/7/13,6/7/13
+800029416,Presidential Plaza At Newport Section Ii,30 Newport Pkwy,Jersey City,3,52.33333333,48,3/21/19,2/5/13
+800057805,East Hampton At Newport,30 River Ct,Jersey City,4,80.75,82.5,8/15/19,4/1/14
+800057930,Independence Manor At Hunterdon,1 Leisure Ct,Flemington,3,80.33333333,79,2/26/20,1/8/18
+800057930,Independence Manor At Hunterdon,188 Hwy 31,Flemington,1,65,65,3/26/13,3/26/13
+800057930,Independence Manor At Hunterdon,188 Route 31,Flemington,1,88,88,5/21/14,5/21/14
+800058190,Best Of Life Park,129 143 S Virginia Ave,Atlantic City,1,98,98,8/26/13,8/26/13
+800058191,Grandview Terrace,3060 Kennedy Blvd,Jersey City,2,70.5,70.5,4/23/18,9/24/15
+800212307,The Atrium At Hamilton Park,330 9th St,Jersey City,2,61.5,61.5,8/20/19,4/2/14
+800212307,The Atrium At Hamilton Park,350 9th St,Jersey City,1,80,80,5/19/15,5/19/15
+800214081,Princeton Nursing And Rehabili,728 Bunn Dr,Princeton,1,66,66,9/15/17,9/15/17
+800217527,Ferry Station Llc,1801 E Davis St,Camden,1,97,97,10/23/14,10/23/14
+800217531,The Arbors,220 S Lenola Rd,Maple Shade,3,86,85,4/2/18,1/10/14
+800217551,Lafayette Village,107 Manning Ave,Jersey City,2,90.5,90.5,9/12/18,7/15/15
+800217551,Lafayette Village,579 Grand St,Jersey City,1,88,88,1/24/13,1/24/13
+800217552,Assisted Living At Howell,Route 9,Howell,2,53.5,53.5,4/26/18,1/13/14
+800217552,Assisted Living At Howell,,Howell,1,35,35,8/26/15,8/26/15
+800218242,Gates Manor,111-115 Gates Ave,Montclair,1,83,83,9/23/15,9/23/15
+800218586,Clara Barton Assisted  Lvng Fclty,1015 Amboy Ave,Edison,2,94,94,11/12/19,8/19/13
+800218587,Kensington Court,864 Shrewsbury Ave,Tinton Falls,1,70,70,2/18/14,2/18/14
+800222248,Sbcs Supportive Housing I,313 Iris Rd,Cherry Hill,2,71,71,8/8/18,6/3/15
+800222468,Cedar Hill Healthcare Center,110 Grove Ave,Cedar Grove,1,62,62,5/5/14,5/5/14
+800223286,Acorn Glen Assisted Living,775 Mount Lucas Rd,Princeton,2,92,92,4/12/18,4/13/15
+800226619,Terraces Of Seacrest Village,281 Mathistown Rd,Little Egg Harbor Twp,3,81,81,11/21/19,12/28/15
+800227334,Siloam Homes,22 Boudinot St,Trenton,2,82.5,82.5,9/9/19,2/27/18
+800231595,Victoria Mews Assisted Living,51 N Main St,Boonton Township,5,70.6,73,2/25/20,2/4/14
+800231686,Spring Hills Of Morristown,17 Spring Pl,Morristown,2,76.5,76.5,11/4/14,11/14/13
+800232476,Spring Oaks Assisted Living Of Forked River,601 Main St,Lanoka Harbor,6,67.16666667,67.5,9/11/19,5/15/13
+800232483,Spring Oaks Assisted Living Of Berlin,396 S White Horse Pike,Berlin,4,73,73,5/30/19,5/21/13
+800232485,Spring Oaks Assisted Living Of Vineland,1610 S Main Rd,Vineland,4,78.5,78.5,9/12/19,5/8/13
+800233094,Avalon At Hillsborough,393 Amwell Rd,Hillsborough,4,81.75,86,10/3/19,5/20/13
+800236253,Warren J. Lockwood Village,1305 Wood Ave,Roselle,4,68.5,68.5,3/28/19,7/14/14
+800236373,Bentley Assisted Living At Branchville,3 Phillips Rd,Branchville,2,47.5,47.5,3/20/19,3/9/18
+800237241,Seacrest Village,1001 Center St,Little Egg Harbor Twp,1,91,91,5/15/15,5/15/15
+800237247,Spring Hills2-Somerset,473 Demott Ln,Somerset,4,67.25,68,10/30/19,4/25/16
+800237889,Atlantic Apartments,31 River Ct,Jersey City,3,72.66666667,81,5/2/19,4/9/15
+800239451,Hollywood Terrace Housing Corp.,1106 Hollywood Rd,Linden,1,82,82,6/18/19,6/18/19
+800239633,River Park Village Apartments,5 Burton Way,Landing,2,85,85,9/25/18,4/28/16
+800240064,Excel On The Hudson,5701 Kennedy Blvd E,West New York,1,71,71,4/29/19,4/29/19
+800240064,Overlook Terrace North,5701 Kennedy Blvd E,West New York,1,88,88,9/9/16,9/9/16
+800240173,Spruce Street Senior Apartments,136 Spruce St,Newark,1,85,85,7/25/19,7/25/19
+800240433,Cumberland Green,26 N Ladow Ave,Millville,1,88,88,12/20/19,12/20/19
+800242568,Potomac At Ramsey,38 N Central Ave,Ramsey,2,77,77,2/20/20,2/6/19
+800242834,Royal Crescent,1100 Royal Crescent Ct,Mount Royal,1,84,84,3/22/16,3/22/16
+800244698,The Heritage Assisted Living,45 Route 206,Hammonton,1,47,47,11/6/19,11/6/19
+NJ002002001,Seth Boyden Ct,107 Church Ter,Newark,2,54.5,54.5,4/20/10,4/27/09
+NJ002002005,Baxter Terr,176 James St,Newark,1,53,53,4/23/09,4/23/09
+NJ002002008,Felix Fuld,113 Rose St,Newark,1,71,71,4/21/09,4/21/09
+NJ002002019,Gigi Foushee Towers,99 Lincoln St,Newark,2,89,89,3/29/10,5/12/09
+NJ003000010,Westminster Heights,440 Irvington Ave,Elizabeth,2,97,97,8/15/19,6/9/16
+NJ003000011,Marina Village,136 Front St,Elizabeth,2,49,49,10/9/18,10/17/17
+NJ003000046,Pioneer Homes,Pioneer Homes Apt 5a,Elizabeth,1,,,,
+NJ005000005,Miller Homes,125 Lincoln Ave,Trenton,1,,,,
+NJ006000001,William A. Dunlap,881 Amboy Ave,Perth Amboy,1,82,82,5/27/14,5/27/14
+NJ006000001,William A. Dunlap Homes,608 Zambory St,Perth Amboy,2,84,84,6/10/15,4/6/10
+NJ006000002,John A. Delaney Homes,941 Convery Blvd.,Perth Amboy,1,,,,
+NJ006000014,The Residences At Willow Pond Village,601 Chamberlain Ave,Perth Amboy,1,95,95,12/8/17,12/8/17
+NJ006004005,Wesley T.  Hansen,415 Fayette St,Perth Amboy,1,73,73,4/21/14,4/21/14
+NJ006004005,Wesley T.  Hansen Apts.,415 Fayette St Apt 10a,Perth Amboy,2,88.5,88.5,5/21/15,4/2/10
+NJ006010011,Perth Amboy Ha,101 Dobranski Dr,Perth Amboy,1,70,70,3/24/10,3/24/10
+NJ007000003,Bostonway Village,1000 1/2 3rd Ave,Asbury Park,1,40,40,8/22/13,8/22/13
+NJ007000003,Bostonway Village,Bostonway St Bldg 1-Apt 18,Asbury Park,2,36.5,36.5,4/20/10,5/21/09
+NJ008000004,Woodrow Wilson Hms,67 Woodrow Wilson Homes,Long Branch,2,72,72,8/2/10,10/24/08
+NJ009000006,Montgomery Grdns,561 Montgomery St,Jersey City,1,59,59,9/18/09,9/18/09
+NJ009000006,Montgomery Grdns,563 Montgomery St,Jersey City,3,65,52,3/13/20,6/11/14
+NJ009000007,A Harry Moore Apts,328 Duncan Ave,Jersey City,1,,,,
+NJ010000002,Branch Vlge,1800 S 9th St,Camden,1,74,74,5/21/14,5/21/14
+NJ010000002,Branch Vlge,23 Branch Vlg,Camden,2,67.5,67.5,2/11/16,3/17/10
+NJ010000006,Mcguire Grdns,2008 Westminster Ave,Camden,3,73.66666667,82,3/2/17,3/10/10
+NJ013000002,Vreeland Vlg,201/203 Sixth Street,Passaic,2,66.5,66.5,1/25/10,1/14/09
+NJ013000002,Vreeland Vlg,234 Chestnut St,Passaic,2,69.5,69.5,4/7/14,6/17/13
+NJ013000002,Vreeland Vlg,,Passaic,1,88,88,2/22/16,2/22/16
+NJ013000003,Murphy/Hecht Apts,299 Gregory Ave,Passaic,3,66.33333333,67,6/3/13,12/26/08
+NJ014000003,Walter J Buzby Hom,600 South Dr,Atlantic City,1,87,87,7/8/14,7/8/14
+NJ014000003,Walter J Buzby Homes,4200 W End Ave,Atlantic City,5,68.2,72,7/18/19,4/16/09
+NJ014000010,John P. Whittingto,202 N New Hampshire Ave,Atlantic City,1,80,80,5/9/14,5/9/14
+NJ015000005,Fox Hill Grdns,311 13th St,Hoboken,8,46.375,44,9/26/19,11/14/08
+NJ017000001,Summit Housing Authority,12 Chestnut Ave,Summit,3,68.33333333,70,2/27/15,9/2/09
+NJ021000001,Riverside Terrace,29 Harris Pl,Paterson,2,58.5,58.5,9/3/14,7/11/13
+NJ021000001,Riverside Terrace  Development,16 Plesinger Pl,Paterson,5,49.4,41,8/16/18,4/20/09
+NJ022000002,Sb Hoffman Pavilion,75 Neilson St,New Brunswick,2,56,56,11/10/09,10/3/08
+NJ022000003,Riverside Complex,1 Riverside Dr,New Brunswick,3,89.66666667,90,7/6/15,11/3/08
+NJ022000003,Riverside Complex,16 Riverside Dr,New Brunswick,1,71,71,9/8/14,9/8/14
+NJ025000001,Alexander Ct,98 Parrow St,Orange,1,5,5,5/7/09,5/7/09
+NJ027000001,Redding Circle,201 Redding Cir,Princeton,2,74.5,74.5,9/13/10,12/3/08
+NJ027000001,Redding Circle,50 Clay St,Princeton,1,80,80,9/5/14,9/5/14
+NJ028000001,Oratam Ct,230 Central Ave,Hackensack,2,83.5,83.5,10/8/10,12/24/08
+NJ028000001,Oratam Ct,65 1st St,Hackensack,1,93,93,10/28/13,10/28/13
+NJ028000002,Wm B Widnall Tws,60 Kansas St,Hackensack,2,65.5,65.5,10/27/10,12/1/08
+NJ028000002,Wm B Widnall Tws,65 1st St,Hackensack,1,98,98,10/29/13,10/29/13
+NJ030000001,Park East Gdns,515 54th St,West New York,2,63,63,11/16/17,2/24/15
+NJ030000001,Park East Gdns,515 54th St Ste 1,West New York,3,53.33333333,53,10/29/10,11/18/08
+NJ030000001,Park East Gdns,6100 Adams St,West New York,1,47,47,10/22/13,10/22/13
+NJ030000002,J F Kennedy Tws,430 62nd St,West New York,5,61,61,11/8/17,11/19/08
+NJ033000001,Woodbridge Grdn Ap,20  20 Bunns Lane Lane,Woodbridge,1,96,96,9/25/13,9/25/13
+NJ033000001,Woodbridge Grdn Apts,1 Bunns Lane,Woodbridge,3,63.66666667,68,11/1/17,10/16/08
+NJ033000002,Stern-Olsen Towers,55 Brook St,Woodbridge,1,71,71,11/13/17,11/13/17
+NJ033000002,Stern-Olsen Towers,555 New Brunswick Ave,Fords,3,89.33333333,91,2/23/15,11/18/08
+NJ036000002,Centennial Towers,6900 Broadway,Guttenberg,3,68.66666667,65,7/24/13,4/16/09
+NJ036000003,Golden Gardens,136 69th St,Guttenberg,2,72,72,4/27/10,4/17/09
+NJ036000004,Herman G. Klein Towers,7005 Boulevard East,Guttenberg,2,76.5,76.5,4/22/10,4/17/09
+NJ039000002,Elmwood Grdns,532 W Ofc 532 West 2nd St. 1-A Street,Plainfield,1,33,33,5/22/13,5/22/13
+NJ039000002,Elmwood Grdns,544 W 2nd St,Plainfield,3,39.33333333,32,4/12/11,2/9/09
+NJ041000001,Jennie Parker Mnr,121 Waterwitch Ave,Highlands,2,83,83,7/14/15,11/12/09
+NJ041000001,Jennie Parker Mnr,125 Waterwitch Ave,Highlands,1,76,76,8/28/13,8/28/13
+NJ041000002,Ptak Towers,215 Shore Dr,Highlands,3,73.33333333,63,7/13/15,11/12/09
+NJ042000001,Parkside Vlg,121 Mark St,Somerset,2,63.5,63.5,8/13/10,11/26/08
+NJ044000001,Samuel J Kronman S,242 S 242 South 6th Ave Avenue,Highland Park,1,93,93,6/12/14,6/12/14
+NJ044000001,Samuel J Kronman Sc,242 S 6th Ave,Highland Park,1,70,70,7/6/17,7/6/17
+NJ044000001,Samuel J Kronman Sc,242 S 6th Ave Ste 1,Highland Park,1,80,80,6/2/09,6/2/09
+NJ047000001,Edw J Dolan Hms,A1 Bergen St,Carteret,1,89,89,4/21/16,4/21/16
+NJ047000001,Edw J Dolan Hms,C1 Bergen St,Carteret,1,59,59,2/13/18,2/13/18
+NJ047000001,Jeanette Smith Vlg,I1 Union St,Carteret,1,95,95,1/14/09,1/14/09
+NJ050000003,Vista Village,70 S Burnett St,East Orange,5,65.2,68,8/28/17,12/14/08
+NJ051000001,Ellis Manor,133 Grillo Ave,Glassboro,1,74,74,2/24/09,2/24/09
+NJ051000001,Ellis Manor,737 Lincoln Blvd,Glassboro,1,87,87,4/3/14,4/3/14
+NJ054000001,John J. Currey Bldg,220 E 4th St,Lakewood,4,80.25,82.5,1/22/16,2/6/09
+NJ054000002,Duffy Sc/Jfk,262a Warren St,Lakewood,3,71.66666667,76,4/14/11,3/3/09
+NJ054000002,Duffy Sc/Jfk,317 Sampson Ave,Lakewood,1,60,60,6/4/14,6/4/14
+NJ055000001,Vincent K Tibbs Sc,111 West St,Englewood,1,63,63,4/20/15,4/20/15
+NJ055000001,Vincent K Tibbs Sc,111 West St Ste 1,Englewood,1,58,58,2/25/09,2/25/09
+NJ056000001,Brian-Kehoe/Grif-Tol,235 Magnolia Ave,South Toms River,2,96.5,96.5,4/7/15,2/26/09
+NJ059000001,Pleasantville Towe,140 N Main St,Pleasantville,1,92,92,7/7/14,7/7/14
+NJ059000001,Pleasantville Towers No.,140 N Main St,Pleasantville,1,85,85,5/14/09,5/14/09
+NJ059000005,New Hope Community,156 N Main St,Pleasantville,1,91,91,7/11/14,7/11/14
+NJ059000005,New Hope Community  Phase I,153 Woodland Ave,Pleasantville,1,94,94,6/26/09,6/26/09
+NJ059000006,New Hope Homeowner,1409 Jefferson Ave,Pleasantville,1,98,98,7/17/14,7/17/14
+NJ059000006,New Hope Homeownership,210 W Merion Ave,Pleasantville,1,90,90,10/22/09,10/22/09
+NJ060000001,Granville Towers,1 Church St,Keansburg,3,68,66,10/25/13,12/3/08
+NJ060000001,Granville Towers,1 Church St Apt 111,Keansburg,2,54,54,3/27/18,11/17/15
+NJ063000002,Kidston Twrs,1040 E Landis Ave,Vineland,3,81.33333333,80,11/28/17,12/17/08
+NJ063000002,Kidston Twrs,191 W Chestnut Ave,Vineland,2,78.5,78.5,2/2/15,12/10/13
+NJ063000003,Tarklin Acres,191 W Chestnut Ave,Vineland,1,92,92,10/28/13,10/28/13
+NJ063000003,Tarklin Acres,334 Axtell Ave Apt 1,Vineland,3,92.66666667,92,10/18/17,1/2/09
+NJ065000001,George Conway Apts,165 Chambers Bridge Rd,Brick,1,84,84,2/3/15,2/3/15
+NJ065000001,George Conway Apts,165 Chambersbridge Rd,Brick,2,71.5,71.5,12/8/09,12/2/08
+NJ067000001,Boiling Springs Gr,147 Hackensack St,East Rutherford,1,98,98,5/22/14,5/22/14
+NJ067000001,Boiling Springs Grdns,147 Hackensack St Ste 1,East Rutherford,1,91,91,4/27/09,4/27/09
+NJ067000002,Highland View Apts,300 Highland Ave,Palisades Park,2,93,93,5/19/14,4/27/09
+NJ067000003,Ramsey/Mahwah,102 Ramapo Brae Ln,Mahwah,1,84,84,5/18/09,5/18/09
+NJ067000003,Ramsey/Mahwah,1600 Ramapo Brae Ln,Mahwah,1,96,96,6/30/14,6/30/14
+NJ067000004,Carucci Apts,281 Stuyvesant Ave,Lyndhurst,2,98,98,5/20/14,5/6/09
+NJ067000005,David F. Roche Apt,2 Aladdin Ave,Dumont,1,99,99,5/28/14,5/28/14
+NJ067000005,Mahwah,207 209 Ramapo Brae Lane,Mahwah,1,87,87,5/18/09,5/18/09
+NJ067000006,David F. Roche Apts,2 Aladdin Ave,Dumont,1,98,98,5/6/09,5/6/09
+NJ070500550,Riverview Tws,500 Gorge Rd,Cliffside Park,3,82,83,4/7/16,4/23/09
+NJ071000001,Harry J. Holtje House,1403 Teresa Dr,Fort Lee,2,84,84,2/24/15,2/3/09
+NJ075000001,Edgewater,300 Undercliff Ave,Edgewater,1,74,74,12/16/08,12/16/08
+NJ075000001,Edgewater,300 Undercliff Ave Apt 111,Edgewater,2,88.5,88.5,3/28/18,2/25/15
+NJ077000001,Weehawken H A,525 Gregory Ave,Weehawken,1,64,64,3/31/14,3/31/14
+NJ077000001,Weehawken H A,525 Gregory Ave Ste 1,Weehawken,1,62,62,1/21/09,1/21/09
+NJ081000001,Daniel Tws,1 Oakdale Dr,Middletown,2,75.5,75.5,7/18/14,10/7/09
+NJ083000001,The Elms,777 5th St,Secaucus,4,83,79,8/27/14,4/24/09
+NJ083000002,Rocco Impreveduto Towers,600 County Ave,Secaucus,2,65,65,3/24/10,5/20/09
+NJ092000001,India Brook & Pleasant View Villages,221 Mount Pleasant Ave,Dover,1,91,91,12/18/08,12/18/08
+NJ092000002,Peer Place & Green Pond & Bennett,60 Peer Pl,Denville,1,93,93,1/2/09,1/2/09
+NJ092000201,India Brook Villag,34 Calais Rd,Randolph,1,96,96,4/30/14,4/30/14
+NJ092000202,Bennett Avenue,166 Franklin Rd,Randolph,1,91,91,5/8/14,5/8/14
+NJ092000203,Green Pond Village,39 Green Pond Rd,Rockaway,1,92,92,5/8/14,5/8/14
+NJ092000207,Peer Place,60 Peer Pl,Denville,1,94,94,5/2/14,5/2/14
+NJ105000001,Madison Ha,15 Chateau Thierry Ave,Madison,2,69,69,5/5/14,4/24/09
+NJ202000001,Parkview Gardens,600 Central Ave,Minotola,1,99,99,6/2/14,6/2/14
+NJ202000001,Parkview Gardens,600 Central Ave Apt A1,Minotola,1,97,97,2/19/10,2/19/10
+NJ218000001,Gloucester Towne,101 Market St,Gloucester,2,90.5,90.5,6/25/15,10/8/09
+NJ218000001,Gloucester Towne,101 Market St,Gloucester City,1,98,98,6/6/13,6/6/13

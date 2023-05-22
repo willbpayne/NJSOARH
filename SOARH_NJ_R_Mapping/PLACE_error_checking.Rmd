@@ -1,0 +1,109 @@
+---
+title: "PLACE_error_checking"
+author: "Will P"
+date: "5/12/2023"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+getwd()
+
+library(sf) # use this to read geojsons and shapefiles
+library(tmap) # use this to map them
+library(dplyr) # use this to join and manipulate data frames
+library(tidyverse)
+
+place_PSH_2022 <- read.csv(file = 'PLACE_2022.csv')
+
+place_PSH <- place_PSH_2022 %>% filter(grepl('NJ New Jersey', states))
+
+state_code <- substr(head(place_PSH,1)$code,1,2)
+
+place_PSH <- subset(place_PSH, select = -c(gsl,states,sumlevel,sub_program,entities, fedhse, cbsa, latitude, longitude, state, pha_total_units, ha_size))
+place_PSH[place_PSH==-1]<-0 # replace -1 with 0 throughout (missing data)
+place_PSH[place_PSH==-4]<-NA # replace -4 with NA throughout (suppressed demographic data)
+place_PSH[place_PSH==-5]<-NA # replace -5 with NA throughout (reporting under 50% demographic data)
+
+prefixes <- unique(place_PSH$program) # get all the unique program names used in the dataset
+
+prefixes <- unique(place_PSH$program) # get all the unique program names used in the dataset
+
+place_PSH <- pivot_wider( # pivot them to one row per cdp/cousub/remainder
+  place_PSH,
+  id_cols = NULL,
+  names_from = program,
+  names_prefix = "",
+  names_sep = "_",
+  names_glue = "Pg{program}_{.value}",
+  values_from = c(program_label,total_units,pct_occupied,number_reported,pct_reported,months_since_report,months_since_report,pct_movein,people_per_unit,people_total,rent_per_month,spending_per_month,hh_income,person_income,pct_lt5k,pct_5k_lt10k,pct_10k_lt15k,pct_15k_lt20k,pct_ge20k,pct_wage_major,pct_welfare_major,pct_other_major,pct_median,pct_lt50_median,pct_lt30_median,pct_2adults,pct_1adult,pct_female_head,pct_female_head_child,pct_disabled_lt62,pct_disabled_ge62,pct_disabled_all,pct_lt24_head,pct_age25_50,pct_age51_61,pct_age62plus,pct_age85plus,pct_minority,pct_black_nonhsp,pct_native_american_nonhsp,pct_asian_pacific_nonhsp,pct_white_nothsp,pct_black_hsp,pct_wht_hsp,pct_oth_hsp,pct_hispanic,pct_multi,months_waiting,months_from_movein,pct_utility_allow,ave_util_allow,pct_bed1,pct_bed2,pct_bed3,pct_overhoused,tpoverty,tminority,tpct_ownsfd),
+  names_sort = TRUE
+)
+
+# sort the dataframe so that each set of unit counts and demographic variables are together by program
+names_to_order <- map(prefixes, ~ names(place_PSH)[grep(paste0(.x,"_"), names(place_PSH))]) %>% unlist
+names_id <- setdiff(names(place_PSH), names_to_order)
+place_PSH <- place_PSH %>%
+  select(all_of(names_id), names_to_order)
+
+rm(names_id, names_to_order) # remove intermediate outputs
+
+code_9999 <- paste(state_code, '99999', sep='')
+code_XX <- paste(state_code, 'XXXXX', sep='')
+
+place_PSH_CDPs <- place_PSH %>% filter(grepl('CDP', name)) # extract CDPs
+place_PSH_no_CDPs <- place_PSH %>% filter(!grepl('CDP', name)) # filter them out of the main dataset
+place_PSH_999999s <- filter(place_PSH_no_CDPs, code == code_9999) # extract cousubs without geoids, including remainders
+place_PSH_geoID <- filter(place_PSH_no_CDPs, code != code_9999) # extract cousubs with geoids
+place_PSH_remainders <- place_PSH_999999s %>% filter(grepl('REMAINDER', name)) # extract remainders of cousubs
+place_PSH_othercousubs <- place_PSH_999999s %>% filter(!grepl('REMAINDER', name)) # extract other cousubs without geoids
+place_PSH_34XXXXX <- filter(place_PSH_no_CDPs, code == code_XX) # extract Missing values
+
+## Here's the code to get each program's total unjoinable units
+
+unjoinable_units_by_type <- data.frame(matrix(ncol = 7, nrow = 9))
+colnames(unjoinable_units_by_type) <- c("Pg","Name", "Total_units", "unjoin_Missing","unjoin_CDP", "unjoin_Remainder","unjoin_99999")
+unjoinable_units_by_type$Pg <- 1:9
+unjoinable_units_by_type$Name <- c("All Programs", "Public Housing", "Housing Choice Vouchers", "Moderate Rehabilitation", "Project Based Section 8", "RentSup/RAP", "S236/BMIR", "202/PRAC", "811/PRAC")
+    
+for(i in 1:length(prefixes)) {        # Loop from 1 to length of list
+
+  totalname <- paste('Pg', as.character(prefixes[i]), '_total_units', sep = "")
+  #print(totalname)# Printing some output
+  
+  unjoinable_99999_column <- place_PSH_othercousubs[grepl(totalname,colnames(place_PSH_othercousubs))]
+  sum_of_units <- sum(unjoinable_99999_column,na.rm=TRUE)
+  unjoinable_units_by_type[unjoinable_units_by_type$Pg==prefixes[i], "unjoin_99999"] <- sum_of_units
+  unjoinable_99999_column <- NA
+
+  unjoinable_CDP_column <- place_PSH_CDPs[grepl(totalname,colnames(place_PSH_CDPs))]
+  sum_of_units <- sum(unjoinable_CDP_column,na.rm=TRUE)
+  unjoinable_units_by_type[unjoinable_units_by_type$Pg==prefixes[i], "unjoin_CDP"] <- sum_of_units
+  unjoinable_CDP_column <- NA
+  
+  unjoinable_remainder_column <- place_PSH_remainders[grepl(totalname,colnames(place_PSH_remainders))]
+  sum_of_units <- sum(unjoinable_remainder_column,na.rm=TRUE)
+  unjoinable_units_by_type[unjoinable_units_by_type$Pg==prefixes[i], "unjoin_Remainder"] <- sum_of_units
+  unjoinable_remainder_column <- NA
+  
+  missing_column <- place_PSH_34XXXXX[grepl(totalname,colnames(place_PSH_34XXXXX))]
+  sum_of_units <- sum(missing_column,na.rm=TRUE)
+  unjoinable_units_by_type[unjoinable_units_by_type$Pg==prefixes[i], "unjoin_Missing"] <- sum_of_units
+  unjoinable_remainder_column <- NA
+  
+  total_summary_column <- place_PSH[grepl(totalname,colnames(place_PSH))]
+  sum_of_units <- sum(total_summary_column,na.rm=TRUE)
+  unjoinable_units_by_type[unjoinable_units_by_type$Pg==prefixes[i], "Total_units"] <- sum_of_units
+}
+
+unjoinable_units_by_type$total_joinable <- unjoinable_units_by_type$Total_units - unjoinable_units_by_type$unjoin_Missing
+unjoinable_units_by_type$unjoin_CDP_Pct <- unjoinable_units_by_type$unjoin_CDP/unjoinable_units_by_type$total_joinable *100
+unjoinable_units_by_type$unjoin_Remainder_Pct <- unjoinable_units_by_type$unjoin_Remainder/unjoinable_units_by_type$total_joinable *100
+unjoinable_units_by_type$unjoin_99999_Pct <- unjoinable_units_by_type$unjoin_99999/unjoinable_units_by_type$total_joinable *100
+unjoinable_units_by_type$total_unjoinable <- unjoinable_units_by_type$unjoin_CDP + unjoinable_units_by_type$unjoin_Remainder + unjoinable_units_by_type$unjoin_99999
+unjoinable_units_by_type$total_unjoinable_Pct <- unjoinable_units_by_type$total_unjoinable/unjoinable_units_by_type$total_joinable *100
+
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.

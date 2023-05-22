@@ -203,7 +203,13 @@ head(hud_nj_inspections_2011_to_2021_deduped)
 
 hud_nj_inspections_2011_to_2021_deduped$INSPECTION_SCORE <- as.numeric(hud_nj_inspections_2011_to_2021_deduped$INSPECTION_SCORE)
 
+hud_nj_inspections_2011_to_2021_deduped$CITY <- str_to_title(hud_nj_inspections_2011_to_2021_deduped$CITY)
+hud_nj_inspections_2011_to_2021_deduped$PROPERTY_NAME <- str_to_title(hud_nj_inspections_2011_to_2021_deduped$PROPERTY_NAME)
+hud_nj_inspections_2011_to_2021_deduped$ADDRESS <- str_to_title(hud_nj_inspections_2011_to_2021_deduped$ADDRESS)
 
+# split address by UNIT, SUITE, or APT
+
+# if one entry is missing an address but the other isn't
 
 library(dplyr)
 hud_nj_inspections_2011_to_2021_by_property <- hud_nj_inspections_2011_to_2021_deduped %>%
@@ -218,6 +224,9 @@ hud_nj_inspections_2011_to_2021_by_property$INSPECTION_INTERVAL <- 20/hud_nj_ins
 
 # 638 rows with address issues
 address_issues_inspections <- hud_nj_inspections_2011_to_2021_by_property %>% group_by(PROPERTY_ID) %>% filter(n()>1) 
+
+write.csv(address_issues_inspections, 'inspection_address_matching_issues.csv', na = "")
+
 
 plot(hud_nj_inspections_2011_to_2021_by_property$MEAN_SCORE, hud_nj_inspections_2011_to_2021_by_property$INSPECTIONS) +
 abline(lm(hud_nj_inspections_2011_to_2021_by_property$INSPECTIONS ~ hud_nj_inspections_2011_to_2021_by_property$MEAN_SCORE, data = hud_nj_inspections_2011_to_2021_by_property), col = "blue")
@@ -239,6 +248,36 @@ theme(plot.title = element_text(hjust = 0.5)) + theme_ipsum_rc() +
 )
 
 plotyearly
+
+psh_2021_by_project <- read_csv('/Users/willbpayne/Library/CloudStorage/Box-Box/NJSOARH/Data/Picture of Subsidized Households/2021/NJ_PROJECT_2021.csv')
+
+# get a matching field for the other dataset
+
+psh_2021_by_project$PROPERTY_ID <- sapply(strsplit(psh_2021_by_project$code," "), `[`, 1)
+
+unique_properties_nj_inspections <- hud_nj_inspections_2011_to_2021_deduped %>%
+  dplyr::group_by(PROPERTY_ID,PROPERTY_NAME,ADDRESS,CITY) %>%
+  summarize(INSPECTIONS = n(), 
+            MEAN_SCORE = mean(INSPECTION_SCORE), 
+            MEDIAN_SCORE = median(INSPECTION_SCORE),
+            MOST_RECENT_INSPECTION = max(INSPECTION_DATE),
+            OLDEST_INSPECTION = min(INSPECTION_DATE))
+
+fullJoinDf <- full_join(psh_2021_by_project,unique_properties_nj_inspections,by="PROPERTY_ID")
+View(fullJoinDf)
+
+noinspections_but_in_PSH <- filter(fullJoinDf, is.na(INSPECTIONS) == TRUE)
+
+noPSH_but_in_inspections <- filter(fullJoinDf, is.na(entities) == TRUE)
+
+write.csv(noPSH_but_in_inspections, 'noPSH_but_in_inspections.csv', na = "")
+
+
+property_id_dupes_in_PSH <- psh_2021_by_project %>% group_by(PROPERTY_ID) %>% filter(n()>1) 
+
+# 14 records in the inspections dataset not in the PSH 2021 (also have years without score data)
+# 217 records in the PSH 2021 with no inspection data (including many with the same property ID)
+# 204 property id duplicates in the PSH 2021 (because they have multiple programs!)
 
 +
 scale_x_continuous(name = "Year", breaks = seq(minyear, 2020, 1), limits = c(minyear,2020)) + 
