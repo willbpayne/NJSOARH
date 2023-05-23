@@ -17,7 +17,9 @@ library(tidyverse)
 
 place_PSH_2022 <- read.csv(file = 'PLACE_2022.csv')
 
-place_PSH <- place_PSH_2022 %>% filter(grepl('NJ New Jersey', states))
+state_name <- 'NJ New Jersey'
+
+place_PSH <- place_PSH_2022 %>% filter(grepl(state_name, states))
 
 state_code <- substr(head(place_PSH,1)$code,1,2)
 
@@ -58,7 +60,7 @@ place_PSH_999999s <- filter(place_PSH_no_CDPs, code == code_9999) # extract cous
 place_PSH_geoID <- filter(place_PSH_no_CDPs, code != code_9999) # extract cousubs with geoids
 place_PSH_remainders <- place_PSH_999999s %>% filter(grepl('REMAINDER', name)) # extract remainders of cousubs
 place_PSH_othercousubs <- place_PSH_999999s %>% filter(!grepl('REMAINDER', name)) # extract other cousubs without geoids
-place_PSH_34XXXXX <- filter(place_PSH_no_CDPs, code == code_XX) # extract Missing values
+place_PSH_XXXXX <- filter(place_PSH_no_CDPs, code == code_XX) # extract Missing values
 
 ## Here's the code to get each program's total unjoinable units
 
@@ -67,34 +69,26 @@ colnames(unjoinable_units_by_type) <- c("Pg","Name", "Total_units", "unjoin_Miss
 unjoinable_units_by_type$Pg <- 1:9
 unjoinable_units_by_type$Name <- c("All Programs", "Public Housing", "Housing Choice Vouchers", "Moderate Rehabilitation", "Project Based Section 8", "RentSup/RAP", "S236/BMIR", "202/PRAC", "811/PRAC")
     
-for(i in 1:length(prefixes)) {        # Loop from 1 to length of list
+for(i in 1:length(prefixes)) { # Loop to get unjoinable by type of error and program number
 
   totalname <- paste('Pg', as.character(prefixes[i]), '_total_units', sep = "")
-  #print(totalname)# Printing some output
-  
+
   unjoinable_99999_column <- place_PSH_othercousubs[grepl(totalname,colnames(place_PSH_othercousubs))]
-  sum_of_units <- sum(unjoinable_99999_column,na.rm=TRUE)
-  unjoinable_units_by_type[unjoinable_units_by_type$Pg==prefixes[i], "unjoin_99999"] <- sum_of_units
-  unjoinable_99999_column <- NA
+  unjoinable_units_by_type[unjoinable_units_by_type$Pg==prefixes[i], "unjoin_99999"] <- sum(unjoinable_99999_column,na.rm=TRUE)
 
   unjoinable_CDP_column <- place_PSH_CDPs[grepl(totalname,colnames(place_PSH_CDPs))]
-  sum_of_units <- sum(unjoinable_CDP_column,na.rm=TRUE)
-  unjoinable_units_by_type[unjoinable_units_by_type$Pg==prefixes[i], "unjoin_CDP"] <- sum_of_units
-  unjoinable_CDP_column <- NA
-  
+  unjoinable_units_by_type[unjoinable_units_by_type$Pg==prefixes[i], "unjoin_CDP"] <- sum(unjoinable_CDP_column,na.rm=TRUE)
+
   unjoinable_remainder_column <- place_PSH_remainders[grepl(totalname,colnames(place_PSH_remainders))]
-  sum_of_units <- sum(unjoinable_remainder_column,na.rm=TRUE)
-  unjoinable_units_by_type[unjoinable_units_by_type$Pg==prefixes[i], "unjoin_Remainder"] <- sum_of_units
-  unjoinable_remainder_column <- NA
-  
-  missing_column <- place_PSH_34XXXXX[grepl(totalname,colnames(place_PSH_34XXXXX))]
-  sum_of_units <- sum(missing_column,na.rm=TRUE)
-  unjoinable_units_by_type[unjoinable_units_by_type$Pg==prefixes[i], "unjoin_Missing"] <- sum_of_units
-  unjoinable_remainder_column <- NA
-  
+  unjoinable_units_by_type[unjoinable_units_by_type$Pg==prefixes[i], "unjoin_Remainder"] <- sum(unjoinable_remainder_column,na.rm=TRUE)
+
+  missing_column <- place_PSH_XXXXX[grepl(totalname,colnames(place_PSH_XXXXX))]
+  unjoinable_units_by_type[unjoinable_units_by_type$Pg==prefixes[i], "unjoin_Missing"] <- sum(missing_column,na.rm=TRUE)
+
   total_summary_column <- place_PSH[grepl(totalname,colnames(place_PSH))]
-  sum_of_units <- sum(total_summary_column,na.rm=TRUE)
-  unjoinable_units_by_type[unjoinable_units_by_type$Pg==prefixes[i], "Total_units"] <- sum_of_units
+  unjoinable_units_by_type[unjoinable_units_by_type$Pg==prefixes[i], "Total_units"] <- sum(total_summary_column,na.rm=TRUE)
+  
+  rm(i, totalname, unjoinable_99999_column, unjoinable_CDP_column, unjoinable_remainder_column, missing_column, total_summary_column) 
 }
 
 unjoinable_units_by_type$total_joinable <- unjoinable_units_by_type$Total_units - unjoinable_units_by_type$unjoin_Missing
@@ -103,6 +97,58 @@ unjoinable_units_by_type$unjoin_Remainder_Pct <- unjoinable_units_by_type$unjoin
 unjoinable_units_by_type$unjoin_99999_Pct <- unjoinable_units_by_type$unjoin_99999/unjoinable_units_by_type$total_joinable *100
 unjoinable_units_by_type$total_unjoinable <- unjoinable_units_by_type$unjoin_CDP + unjoinable_units_by_type$unjoin_Remainder + unjoinable_units_by_type$unjoin_99999
 unjoinable_units_by_type$total_unjoinable_Pct <- unjoinable_units_by_type$total_unjoinable/unjoinable_units_by_type$total_joinable *100
+
+write.csv(unjoinable_units_by_type, "unjoinable_units_by_type.csv", row.names=FALSE)
+
+####
+
+place_PSH_Cousubs_Already <- rbind(place_PSH_geoID, place_PSH_othercousubs) # get things that are already aggregated to cousub put together here
+
+place_PSH_Cousubs_Already$Join_Name <- str_to_title(substr(place_PSH_Cousubs_Already$name,4,nchar(place_PSH_Cousubs_Already$name))) # create new join field
+
+rm(place_PSH_no_CDPs, place_PSH_geoID, place_PSH_othercousubs, place_PSH_999999s) # remove intermediate steps
+
+CDP_to_Cousub_Mapping <- read.csv('CDP_to_Cousub_Mapping.csv') # pull in full CDP to cousub crosswalk
+
+CDPs_with_Munis_Duplicates_Total <- duplicated(pull(CDP_to_Cousub_Mapping,NAMELSAD10)) | duplicated(pull(CDP_to_Cousub_Mapping,NAMELSAD10), fromLast=TRUE)
+
+CDPs_with_Munis_Duplicates_Total_List <- CDP_to_Cousub_Mapping[CDPs_with_Munis_Duplicates_Total, c('NAMELSAD10','code',"MUNI_MUN_LABEL")]
+
+state_code <- '42'
+
+Census_Place_2010 <- st_read(paste("Census_Geographies/2010_place/tl_2010_", state_code,"_place10/tl_2010_", state_code, "_place10.shp", sep = "")) # bring in Census Place level geometries
+Census_CDPs_2010 <- Census_Place_2010 %>% filter(grepl('CDP', NAMELSAD10)) # extract CDPs # filter to only CDPs
+
+plot(st_geometry(Census_CDPs_2010), main='Pure geometry with st_geometry function')
+
+Census_CDPs_2010_Neg_Buffer_500 <-  Census_CDPs_2010 %>% sf::st_transform(3424) %>% # reproject the data to 2831
+    sf::st_buffer(-500) # create the buffer
+
+plot(st_geometry(Census_CDPs_2010_Neg_Buffer_500), main='Pure geometry with st_geometry function')
+
+Census_Cousubs_2010 <- st_read(paste("Census_Geographies/2010_cousub/tl_2010_", state_code,"_cousub10/tl_2010_", state_code, "_cousub10.shp", sep = "")) # bring in Census Place level geometries
+
+plot(st_geometry(Census_Cousubs_2010), main='Pure geometry with st_geometry function')
+
+CDP_to_Cousub_Mapping$code <- as.character(CDP_to_Cousub_Mapping$GEOID10)
+glimpse(CDP_to_Cousub_Mapping)
+
+CDP_to_Cousub_Mapping <- filter(CDP_to_Cousub_Mapping, MUNI_MUN_LABEL != 'Byram Township') # remove one of the ambiguous CDPs since all housing units are in Sparta Township
+
+place_PSH_CDPs_with_Munis <- left_join(place_PSH_CDPs, CDP_to_Cousub_Mapping, by = "code") # put them together
+
+CDPs_with_Munis_Duplicates <- duplicated(pull(place_PSH_CDPs_with_Munis,name)) | duplicated(pull(place_PSH_CDPs_with_Munis,name), fromLast=TRUE)
+
+CDPs_with_Ambiguous_or_Missing_Munis <- place_PSH_CDPs_with_Munis[CDPs_with_Munis_Duplicates, c('name','code',"MUNI_MUN_LABEL")]
+#subset(place_PSH_CDPs_with_Munis,duplicated(name))
+
+place_PSH_CDPs_Manual <- filter(place_PSH_CDPs_with_Munis, is.na(MUNI_MUN_LABEL))
+
+place_PSH_CDPs_Manual <- filter(place_PSH_CDPs_with_Munis, is.na(MUNI_MUN_LABEL))
+place_PSH_CDPs_with_Munis <- filter(place_PSH_CDPs_with_Munis, !is.na(MUNI_MUN_LABEL))
+place_PSH_CDPs_with_Munis$CENSUS2010 <- place_PSH_CDPs_with_Munis$MUNI_CENSUS2010 # need a common join field later
+
+rm(place_PSH_CDPs, place_PSH_CDPs_Manual) # get rid of earlier issues
 
 ```
 
