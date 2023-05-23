@@ -150,6 +150,7 @@ place_PSH_CDPs_with_Munis$CENSUS2010 <- place_PSH_CDPs_with_Munis$MUNI_CENSUS201
 
 rm(place_PSH_CDPs, place_PSH_CDPs_Manual) # get rid of earlier issues
 
+
 ```
 
 Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
