@@ -108,30 +108,30 @@ place_PSH_Cousubs_Already$Join_Name <- str_to_title(substr(place_PSH_Cousubs_Alr
 
 rm(place_PSH_no_CDPs, place_PSH_geoID, place_PSH_othercousubs, place_PSH_999999s) # remove intermediate steps
 
-CDP_to_Cousub_Mapping <- read.csv('CDP_to_Cousub_Mapping.csv') # pull in full CDP to cousub crosswalk
-
-CDPs_with_Munis_Duplicates_Total <- duplicated(pull(CDP_to_Cousub_Mapping,NAMELSAD10)) | duplicated(pull(CDP_to_Cousub_Mapping,NAMELSAD10), fromLast=TRUE)
-
-CDPs_with_Munis_Duplicates_Total_List <- CDP_to_Cousub_Mapping[CDPs_with_Munis_Duplicates_Total, c('NAMELSAD10','code',"MUNI_MUN_LABEL")]
-
 state_code <- '42'
 
+## THIS STEP DOES OUR CDP TO COUSUB MAPPING FOR ANY STATE
+
 Census_Place_2010 <- st_read(paste("Census_Geographies/2010_place/tl_2010_", state_code,"_place10/tl_2010_", state_code, "_place10.shp", sep = "")) # bring in Census Place level geometries
-Census_CDPs_2010 <- Census_Place_2010 %>% filter(grepl('CDP', NAMELSAD10)) # extract CDPs # filter to only CDPs
-
-plot(st_geometry(Census_CDPs_2010), main='Pure geometry with st_geometry function')
-
-Census_CDPs_2010_Neg_Buffer_500 <-  Census_CDPs_2010 %>% sf::st_transform(3424) %>% # reproject the data to 2831
-    sf::st_buffer(-500) # create the buffer
-
-plot(st_geometry(Census_CDPs_2010_Neg_Buffer_500), main='Pure geometry with st_geometry function')
+Census_CDPs_2010 <- Census_Place_2010 %>% filter(grepl('CDP', NAMELSAD10)) #filter to only CDPs
+Census_CDPs_2010 <- subset(Census_CDPs_2010, select = -c(PCICBSA10, PCINECTA10,STATEFP10,INTPTLAT10,INTPTLON10,ALAND10,AWATER10,FUNCSTAT10,LSAD10,CLASSFP10,MTFCC10)) # remove extraneous fields
+Census_CDPs_2010_Neg_Buffer_500 <-  Census_CDPs_2010 %>% sf::st_transform(3424) %>% # reproject the data to NJ state plane
+    sf::st_buffer(-1000) # create the negative 1000 foot buffer
 
 Census_Cousubs_2010 <- st_read(paste("Census_Geographies/2010_cousub/tl_2010_", state_code,"_cousub10/tl_2010_", state_code, "_cousub10.shp", sep = "")) # bring in Census Place level geometries
+Census_Cousubs_2010 <- subset(Census_Cousubs_2010, select = -c(CNECTAFP10,NECTAFP10,NCTADVFP10,STATEFP10,INTPTLAT10,INTPTLON10,ALAND10,AWATER10,FUNCSTAT10,LSAD10,MTFCC10))
+Census_Cousubs_2010 <- Census_Cousubs_2010 %>% sf::st_transform(3424) # reproject to NJ state plane
 
-plot(st_geometry(Census_Cousubs_2010), main='Pure geometry with st_geometry function')
+CDP_Correspondence_Table <- st_join(Census_CDPs_2010_Neg_Buffer_500, Census_Cousubs_2010, suffix = c("_CDP", "_Cousub"))
+CDP_Correspondence_Table <- st_drop_geometry(CDP_Correspondence_Table)
+CDP_Correspondence_Table <- subset(CDP_Correspondence_Table, select = -c(CLASSFP10))
 
-CDP_to_Cousub_Mapping$code <- as.character(CDP_to_Cousub_Mapping$GEOID10)
-glimpse(CDP_to_Cousub_Mapping)
+CDPs_with_Munis_Duplicates_Total <- duplicated(pull(CDP_Correspondence_Table,NAMELSAD10_CDP)) | duplicated(pull(CDP_Correspondence_Table,NAMELSAD10_CDP), fromLast=TRUE)
+CDPs_with_Munis_Duplicates_Total_List <- CDP_Correspondence_Table[CDPs_with_Munis_Duplicates_Total,c("NAMELSAD10_CDP", "NAMELSAD10_Cousub")]
+
+# USE THIS TO PULL ROWS OUT OF THE MAIN DATASET
+
+### END THIS SECTION
 
 CDP_to_Cousub_Mapping <- filter(CDP_to_Cousub_Mapping, MUNI_MUN_LABEL != 'Byram Township') # remove one of the ambiguous CDPs since all housing units are in Sparta Township
 
