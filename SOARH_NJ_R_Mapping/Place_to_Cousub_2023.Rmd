@@ -1,37 +1,40 @@
 ---
-title: "Place_to_Cousub_v2"
-author: "Will P"
-date: "2/10/2022"
+title: "PLACE_to_Cousub_Crosswalk_for_PSH"
+author: "Will Payne"
+date: "5/123/2023"
 output: html_document
 ---
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 
-getwd()
+########################################
+## 1 - Setup and Initializing Dataset ##
+########################################
 
 library(sf) # use this to read geojsons and shapefiles
 library(tmap) # use this to map them
 library(dplyr) # use this to join and manipulate data frames
 library(tidyverse)
+#library(PROJ) # necessary?
+#library(transformr) # necessary?
 
-place_PSH <- read.csv(file = 'NJ_Place_2021.csv')
+place_PSH_2022 <- read.csv(file = 'PLACE_2022.csv') # read in national place-level data
 
-place_PSH <- subset(place_PSH, select = -c(X, gsl,states,sumlevel,sub_program,entities, fedhse, cbsa, latitude, longitude, state, pha_total_units, ha_size))
+state_name <- 'NJ New Jersey' # set this once and everything flows from here
+state_abbreviation <- substring(state_name,1,2) # set this once and everything flows from here
 
+place_PSH <- place_PSH_2022 %>% filter(grepl(state_name, states)) # filter to single state
+state_code <- substr(head(place_PSH,1)$code,1,2) # store state code
+
+place_PSH <- subset(place_PSH, select = -c(gsl,states,sumlevel,sub_program,entities, fedhse, cbsa, latitude, longitude, state, pha_total_units, ha_size)) # remove unneeded columns
 place_PSH[place_PSH==-1]<-0 # replace -1 with 0 throughout (missing data)
 place_PSH[place_PSH==-4]<-NA # replace -4 with NA throughout (suppressed demographic data)
 place_PSH[place_PSH==-5]<-NA # replace -5 with NA throughout (reporting under 50% demographic data)
 
-# section of manual geoid updates for NJ townships with duplicate names in different counties
-place_PSH$code[place_PSH$name == "NJ FRANKLIN TOWNSHIP"] <- 3424840 # manually set Franklin Township (Gloucester County)
-place_PSH$code[place_PSH$name == "NJ GREENWICH TOWNSHIP"] <- 3428170 # manually set Greenwich Township (Cumberland County)
-place_PSH$code[place_PSH$name == "NJ SPRINGFIELD TOWNSHIP"] <- 3470020 # manually set Springfield Township (Union County)
-place_PSH$code[place_PSH$name == "NJ UNION TOWNSHIP"] <- 3474480 # manually set Union Township (Union County) 
-place_PSH$code[place_PSH$name == "NJ WASHINGTON TOWNSHIP"] <- 3477135 # manually set Washington Township (Bergen County) 
-place_PSH$code[place_PSH$name == "NJ REMAINDER OF FAIRFIELD TOWNSHIP"] <- 3422350 # manually set Remainder of Fairfield Township (Cumberland County)
-place_PSH$code[place_PSH$name == "NJ REMAINDER OF GREENWICH TOWNSHIP"] <- 3428185 # manually set Remainder of Greenwich Township (Gloucester County)
-place_PSH$code[place_PSH$name == "NJ REMAINDER OF MANSFIELD TOWNSHIP"] <- 3443320 # manually set Remainder of Mansfield Township (Warren County)
+##########################################
+## 2 - Combining Data from All Programs ##
+##########################################
 
 prefixes <- unique(place_PSH$program) # get all the unique program names used in the dataset
 
@@ -52,63 +55,148 @@ names_id <- setdiff(names(place_PSH), names_to_order)
 place_PSH <- place_PSH %>%
   select(all_of(names_id), names_to_order)
 
-rm(names_id, names_to_order,prefixes) # remove intermediate outputs
+rm(names_id, names_to_order) # remove intermediate outputs
+
+#####################################
+## 3 - Split Dataset by Error Type ##
+#####################################
+
+code_99999 <- paste(state_code, '99999', sep='') # state geoid for unjoinable geographies
+code_XXXXX <- paste(state_code, 'XXXXX', sep='') # state geoid for units lacking location information
 
 place_PSH_CDPs <- place_PSH %>% filter(grepl('CDP', name)) # extract CDPs
-place_PSH_no_CDPs <- place_PSH %>% filter(!grepl('CDP', name)) # filter them out of the main dataset
-place_PSH_999999s <- filter(place_PSH_no_CDPs, code == '3499999') # extract cousubs without geoids, including remainders
-place_PSH_geoID <- filter(place_PSH_no_CDPs, code != '3499999') # extract cousubs with geoids
+place_PSH_no_CDPs <- place_PSH %>% filter(!grepl('CDP', name)) # remove CDPs from the main dataset
+place_PSH_999999s <- filter(place_PSH_no_CDPs, code == code_9999) # extract rows without geoids, including remainders
+place_PSH_geoID <- filter(place_PSH_no_CDPs, code != code_9999) # extract non-CDPs with working geoids
 place_PSH_remainders <- place_PSH_999999s %>% filter(grepl('REMAINDER', name)) # extract remainders of cousubs
 place_PSH_othercousubs <- place_PSH_999999s %>% filter(!grepl('REMAINDER', name)) # extract other cousubs without geoids
+place_PSH_XXXXX <- filter(place_PSH_no_CDPs, code == code_XX) # extract missing values (unmappable)
 
-place_PSH_Cousubs_Already <- rbind(place_PSH_geoID, place_PSH_othercousubs) # get things that are already aggregated to cousub
+#######################################
+## 4 - Find Unjoinable Units by Type ##
+#######################################
 
-place_PSH_Cousubs_Already$Join_Name <- str_to_title(substr(place_PSH_Cousubs_Already$name,4,nchar(place_PSH_Cousubs_Already$name)))
+# We do this before anything else in order to have a sense of the scope of the problem
+
+unjoinable_units_by_type <- data.frame(matrix(ncol = 7, nrow = 9)) # initialize empty dataframe
+colnames(unjoinable_units_by_type) <- c("Pg","Name", "Total_units", "unjoin_Missing","unjoin_CDP", "unjoin_Remainder","unjoin_99999")
+unjoinable_units_by_type$Pg <- 1:9 # initialize with all possible program numbers
+unjoinable_units_by_type$Name <- c("All Programs", "Public Housing", "Housing Choice Vouchers", "Moderate Rehabilitation", "Project Based Section 8", "RentSup/RAP", "S236/BMIR", "202/PRAC", "811/PRAC") # and names
+  
+for(i in 1:length(prefixes)) { # loop to get unjoinable units by type of error and program number
+  totalname <- paste('Pg', as.character(prefixes[i]), '_total_units', sep = "")
+
+  unjoinable_99999_column <- place_PSH_othercousubs[grepl(totalname,colnames(place_PSH_othercousubs))]
+  unjoinable_units_by_type[unjoinable_units_by_type$Pg==prefixes[i], "unjoin_99999"] <- sum(unjoinable_99999_column,na.rm=TRUE)
+
+  unjoinable_CDP_column <- place_PSH_CDPs[grepl(totalname,colnames(place_PSH_CDPs))]
+  unjoinable_units_by_type[unjoinable_units_by_type$Pg==prefixes[i], "unjoin_CDP"] <- sum(unjoinable_CDP_column,na.rm=TRUE)
+
+  unjoinable_remainder_column <- place_PSH_remainders[grepl(totalname,colnames(place_PSH_remainders))]
+  unjoinable_units_by_type[unjoinable_units_by_type$Pg==prefixes[i], "unjoin_Remainder"] <- sum(unjoinable_remainder_column,na.rm=TRUE)
+
+  missing_column <- place_PSH_XXXXX[grepl(totalname,colnames(place_PSH_XXXXX))]
+  unjoinable_units_by_type[unjoinable_units_by_type$Pg==prefixes[i], "unjoin_Missing"] <- sum(missing_column,na.rm=TRUE)
+
+  total_summary_column <- place_PSH[grepl(totalname,colnames(place_PSH))]
+  unjoinable_units_by_type[unjoinable_units_by_type$Pg==prefixes[i], "Total_units"] <- sum(total_summary_column,na.rm=TRUE)
+  
+  rm(i, totalname, unjoinable_99999_column, unjoinable_CDP_column, unjoinable_remainder_column, missing_column, total_summary_column) 
+}
+
+unjoinable_units_by_type$total_joinable <- unjoinable_units_by_type$Total_units - unjoinable_units_by_type$unjoin_Missing
+unjoinable_units_by_type$unjoin_CDP_Pct <- unjoinable_units_by_type$unjoin_CDP/unjoinable_units_by_type$total_joinable *100
+unjoinable_units_by_type$unjoin_Remainder_Pct <- unjoinable_units_by_type$unjoin_Remainder/unjoinable_units_by_type$total_joinable *100
+unjoinable_units_by_type$unjoin_99999_Pct <- unjoinable_units_by_type$unjoin_99999/unjoinable_units_by_type$total_joinable *100
+unjoinable_units_by_type$total_unjoinable <- unjoinable_units_by_type$unjoin_CDP + unjoinable_units_by_type$unjoin_Remainder + unjoinable_units_by_type$unjoin_99999
+unjoinable_units_by_type$total_unjoinable_Pct <- unjoinable_units_by_type$total_unjoinable/unjoinable_units_by_type$total_joinable *100
+
+write.csv(unjoinable_units_by_type, paste0(state_abbreviation,"_unjoinable_units_by_type_2022.csv",sep=''), row.names=FALSE) # writes filename with state abbreviation, update later for different years
+
+########################################
+## 5 - Create CDP to Cousub Crosswalk ##
+########################################
+
+state_code <- '34' # use this for testing
+
+Census_Place_2010 <- st_read(paste("Census_Geographies/2010_place/tl_2010_", state_code,"_place10/tl_2010_", state_code, "_place10.shp", sep = "")) # bring in Census Place level geometries
+Census_CDPs_2010 <- Census_Place_2010 %>% filter(grepl('CDP', NAMELSAD10)) #filter to only CDPs
+Census_CDPs_2010 <- subset(Census_CDPs_2010, select = -c(PCICBSA10, PCINECTA10,STATEFP10,INTPTLAT10,INTPTLON10,ALAND10,AWATER10,FUNCSTAT10,LSAD10,CLASSFP10,MTFCC10)) # remove extraneous fields
+
+CDP_bounds <- st_bbox(Census_CDPs_2010) # get the bounding box for the CDPs in this state
+CDP_centroid_lon <- (CDP_bounds[1] + CDP_bounds[3])/2 # average the longs
+CDP_centroid_lat <- (CDP_bounds[2] + CDP_bounds[4])/2 # average the lats
+
+# function below is adapted from code by Gordon McDonald from 8/10/2021, found here: https://gis.stackexchange.com/questions/13291/computing-utm-zone-from-lat-long-point
+
+find_one_utm_zone <- function(longitude, latitude) { # function to find the right UTM zone
+  if ( (latitude>-80.0) && (latitude<=84.0) ){
+    mid_zones <- LETTERS[c(3:8,10:14,16:24)] # C to X, skip I and O
+    utm_letter <- mid_zones[ min(floor( (latitude + 80) / 8 )+1 , 20) ]
+    utm_number <- (floor( (longitude + 180) / 6 ) %% 60) + 1 # modulo in case longitude is 0 to 360 instead of -180 to 180
+    utm_zone <- paste0(utm_number, utm_letter)
+    return(utm_zone)
+  } else {
+      stop("lat long not valid (or something else broke)")
+    }
+}
+
+utm_zone <- find_one_utm_zone(CDP_centroid_lon, CDP_centroid_lat) # find the right UTM zone
+CDP_2010_Proj <- st_transform(Census_CDPs_2010, paste0("+proj=utm +zone=",utm_zone," +ellps=GRS80 +datum=NAD83", sep="")) #reproject to correct UTM zone
+CDP_2010_Neg_Buffer <- CDP_2010_Proj %>% st_buffer(-150)  # create the negative 1000 foot buffer
+CDP_2010_Neg_Buffer$sqkm <- as.numeric(st_area(CDP_2010_Neg_Buffer)/1000000)
+
+Census_Cousubs_2010 <- st_read(paste("Census_Geographies/2010_cousub/tl_2010_", state_code,"_cousub10/tl_2010_", state_code, "_cousub10.shp", sep = "")) # bring in Census Place level geometries
+Census_Cousubs_2010 <- subset(Census_Cousubs_2010, select = -c(CNECTAFP10,NECTAFP10,NCTADVFP10,STATEFP10,INTPTLAT10,INTPTLON10,ALAND10,AWATER10,FUNCSTAT10,LSAD10,MTFCC10))
+Cousubs_2010_Proj <- Census_Cousubs_2010 %>% sf::st_transform(paste0("+proj=utm +zone=",utm_zone," +ellps=GRS80 +datum=NAD83", sep="")) # reproject to UTM projection specified above
+
+CDP_Correspondence_Table <- st_join(CDP_2010_Neg_Buffer, Cousubs_2010_Proj, suffix = c("_CDP", "_Cousub"))
+CDP_Correspondence_Table <- subset(CDP_Correspondence_Table, select = -c(CLASSFP10)) # remove extra field that we might use elsewhere but not now
+
+CDP_Cousub_intersects <- st_intersection(CDP_2010_Neg_Buffer, Cousubs_2010_Proj) # try this
+CDP_Cousub_intersects$area <- as.numeric(st_area(CDP_Cousub_intersects)/1000000)
+CDP_Cousub_intersects$coverage <- CDP_Cousub_intersects$area/CDP_Cousub_intersects$sqkm
+
+CDPs_with_Munis_Duplicates_Total <- duplicated(pull(CDP_Cousub_intersects,PLACEFP10)) | duplicated(pull(CDP_Cousub_intersects,PLACEFP10), fromLast=TRUE) # get duplicates and originals
+CDPs_with_Munis_Duplicates_Total_List <- CDP_Cousub_intersects[CDPs_with_Munis_Duplicates_Total,c("NAMELSAD10", "NAMELSAD10.1","coverage")]
+
+CDP_Cousub_intersects <- st_drop_geometry(CDP_Cousub_intersects) # remove geometry
+
+###################################
+## 6 - Set Aside Handled Cousubs ##
+###################################
+
+place_PSH_Cousubs_Already <- rbind(place_PSH_geoID, place_PSH_othercousubs) # get things that are already aggregated to cousub put together here
+
+place_PSH_Cousubs_Already$Join_Name <- str_to_title(substr(place_PSH_Cousubs_Already$name,4,nchar(place_PSH_Cousubs_Already$name))) # create new join field
 
 rm(place_PSH_no_CDPs, place_PSH_geoID, place_PSH_othercousubs, place_PSH_999999s) # remove intermediate steps
 
-# come up with a list of cousubs that need to be manually aggregated for 2021
-
-manual_tract_aggregation_list <- c(3402970320,3402903050,3401304695,3401306260,3400129280,3402129310,3401133120,3402133180,3401139450,3402139510,3401547250,3402347280,3402554270,3402954300,3401577180,3402777240,3404177300,3401974420,3400569990,3403970020,3401924870,3401524840,3403974480,3400577150,3400377135)
-
-# this is a new note
-
-# these four because 
-#Stafford (Ocean) 3402970320
-#Barnegat (Ocean) 3402903050
-#Belleville (Essex) 3401304695
-#Bloomfield (Essex) 3401306260
-
-#Springfield (Burlington) 3400569990
-#Springfield (Union) 3403970020
-
-#Washington (Burlington) 3400577150
-#Washington (Bergen) 3400377135
-
-#Hamilton (Atlantic) 3400129280
-#Hamilton (Mercer) 3402129310
-#Hopewell (Cumberland) 3401133120
-#Hopewell (Mercer) 3402133180
-#Lawrence (Cumberland) 3401139450
-#Lawrence (Mercer) 3402139510
-#Monroe (Gloucester) 3401547250
-#Monroe (Middlesex) 3402347280
-#Ocean (Monmouth) 3402554270
-#Ocean (Ocean) 3402954300
-#Washington (Gloucester) 3401577180
-#Washington (Morris) 3402777240
-#Washington (Warren) 3404177300
-#Franklin (Hunterdon) 3401924870
-#Franklin (Gloucester) 3401524840
-#Union (Hunterdon) 3401974420
-#Union (Union) 3403974480
-
-CDP_to_Cousub_Mapping <- read.csv('CDP_to_Cousub_Mapping.csv')
-
-CDP_to_Cousub_Mapping$code <- as.character(CDP_to_Cousub_Mapping$GEOID10)
-glimpse(CDP_to_Cousub_Mapping)
+#######################################
+## 7 - Aggregate CDPs and Remainders ##
+#######################################
 
 CDP_to_Cousub_Mapping <- filter(CDP_to_Cousub_Mapping, MUNI_MUN_LABEL != 'Byram Township') # remove one of the ambiguous CDPs since all housing units are in Sparta Township
+
+place_PSH_CDPs_with_Munis <- left_join(place_PSH_CDPs, CDP_Correspondence_Table, by = "code") # put them together
+
+CDPs_with_Munis_Duplicates <- duplicated(pull(place_PSH_CDPs_with_Munis,name)) | duplicated(pull(place_PSH_CDPs_with_Munis,name), fromLast=TRUE)
+
+CDPs_with_Ambiguous_or_Missing_Munis <- place_PSH_CDPs_with_Munis[CDPs_with_Munis_Duplicates, c('name','code',"MUNI_MUN_LABEL")]
+#subset(place_PSH_CDPs_with_Munis,duplicated(name))
+
+place_PSH_CDPs_Manual <- filter(place_PSH_CDPs_with_Munis, is.na(MUNI_MUN_LABEL))
+
+place_PSH_CDPs_Manual <- filter(place_PSH_CDPs_with_Munis, is.na(MUNI_MUN_LABEL))
+place_PSH_CDPs_with_Munis <- filter(place_PSH_CDPs_with_Munis, !is.na(MUNI_MUN_LABEL))
+place_PSH_CDPs_with_Munis$CENSUS2010 <- place_PSH_CDPs_with_Munis$MUNI_CENSUS2010 # need a common join field later
+
+rm(place_PSH_CDPs, place_PSH_CDPs_Manual) # get rid of earlier issues
+
+CDP_to_Cousub_Mapping <- filter(CDP_to_Cousub_Mapping, MUNI_MUN_LABEL != 'Byram Township') # remove one of the ambiguous CDPs since all housing units are in Sparta Township
+
+# come up with a list of cousubs that need to be manually aggregated for 2022 (NOT UPDATED)
+manual_tract_aggregation_list <- c(3402970320,3402903050,3401304695,3401306260,3400129280,3402129310,3401133120,3402133180,3401139450,3402139510,3401547250,3402347280,3402554270,3402954300,3401577180,3402777240,3404177300,3401974420,3400569990,3403970020,3401924870,3401524840,3403974480,3400577150,3400377135)
 
 place_PSH_CDPs_with_Munis <- left_join(place_PSH_CDPs, CDP_to_Cousub_Mapping, by = "code") # put them together
 place_PSH_CDPs_Manual <- filter(place_PSH_CDPs_with_Munis, is.na(MUNI_MUN_LABEL))
@@ -155,6 +243,9 @@ place_PSH_Cousubs_So_Far <- dplyr::bind_rows(place_PSH_Cousubs_So_Far_Prep,place
 place_PSH_Unmerged_Final <- subset(place_PSH_Cousubs_So_Far, !CENSUS2010 %in% manual_tract_aggregation_list)
 place_PSH_Unmerged_Manual <- subset(place_PSH_Cousubs_So_Far, CENSUS2010 %in% manual_tract_aggregation_list)
 
+####################################
+## 8 - Manual Muni Disambiguation ##
+####################################
 
 place_PSH_Unmerged_Final$CENSUS2010[place_PSH_Unmerged_Final$name == "NJ CITY OF ORANGE TOWNSHIP"] <- 3401313045 # manually set City of Orange Township (Essex County)
 place_PSH_Unmerged_Final$CENSUS2010[place_PSH_Unmerged_Final$name == "NJ PRINCETON TOWNSHIP"] <- 3402160900 # manually set Princeton Township (Mercer County) to Princeton Borough (Mercer County) since they've merged
@@ -171,6 +262,9 @@ place_PSH_Unmerged_Final$CENSUS2010[place_PSH_Unmerged_Final$name == "NJ REMAIND
 
 write.csv(place_PSH_Unmerged_Final,'place_PSH_Unmerged_Final.csv')
 
+###################################################
+## 9 - Merge CDP/Remainders and Demographic Data ##
+###################################################
 
 place_PSH_noNAs <- place_PSH_Unmerged_Final %>% # this code drops all the demographic data that we don't have
   select(
@@ -632,6 +726,10 @@ place_PSH_Final <- place_PSH_noNAs %>%
             pg9_pct_utility_allow = (sum(Pg9_pct_utility_allow * Pg9_number_reported, na.rm=TRUE))/sum(Pg9_number_reported, na.rm=TRUE),
             pg9_pct_lt5kave_util_allow = (sum(Pg9_ave_util_allow * Pg9_number_reported, na.rm=TRUE))/sum(Pg9_number_reported, na.rm=TRUE)) %>% distinct(CENSUS2010, .keep_all = TRUE)
 
+###################################
+## 10 - Final Cleanup and Output ##
+###################################
+
 place_PSH_Final <- place_PSH_Final %>% mutate_all(~ifelse(is.nan(.), NA, .)) # remove duplicate rows and NaN values
 
 place_PSH_Final$name[place_PSH_Final$CENSUS2010 == 3401528185] <- "Greenwich Township" # 
@@ -657,568 +755,6 @@ place_PSH_Final_with_Counties <- subset(place_PSH_Final_with_Counties, select = 
 
 write.csv(place_PSH_Final_with_Counties, 'place_2021_PSH_Final_with_Counties.csv', na = "")
 
-```
-
-## R Markdown
-
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
-
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
-
-```{r cars}
-
-# TRACTS START HERE
-
-library(haven)
-library(tidyverse)
-library(base)
-library(readxl)
-library(dplyr)
-library(tidyr)
-library(readr)
-library(tidycensus)
-library(tigris)
-library(ggplot2)
-library(maptools)
-library(stringr)
-
-#OPEN PSH
-
-PSH_trct_2021<-read.csv("NJ_TRACT_2021.csv")
-
-#will's code part 1
-PSH_trct_2021[PSH_trct_2021==-1]<-0 # replace -1 with 0 throughout (missing data)
-PSH_trct_2021[PSH_trct_2021==-4]<-NA # replace -4 with NA throughout (suppressed demographic data)
-PSH_trct_2021[PSH_trct_2021==-5]<-NA # replace -5 with NA throughout (reporting under 50% demographic data)
-prefixes <- unique(PSH_trct_2021$program) # get all the unique program names used in the dataset
-PSH_trct_2021 <- pivot_wider( # pivot them to one row per cdp/cousub/remainder
-  PSH_trct_2021,
-  id_cols = c(code),
-  names_from = program,
-  names_prefix = "",
-  names_sep = "_",
-  names_glue = "Pg{program}_{.value}",
-  values_from = c(program_label,total_units,pct_occupied,number_reported,pct_reported,months_since_report,months_since_report,pct_movein,people_per_unit,people_total,rent_per_month,spending_per_month,hh_income,person_income,pct_lt5k,pct_5k_lt10k,pct_10k_lt15k,pct_15k_lt20k,pct_ge20k,pct_wage_major,pct_welfare_major,pct_other_major,pct_median,pct_lt50_median,pct_lt30_median,pct_2adults,pct_1adult,pct_female_head,pct_female_head_child,pct_disabled_lt62,pct_disabled_ge62,pct_disabled_all,pct_lt24_head,pct_age25_50,pct_age51_61,pct_age62plus,pct_age85plus,pct_minority,pct_black_nonhsp,pct_native_american_nonhsp,pct_asian_pacific_nonhsp,pct_white_nothsp,pct_black_hsp,pct_wht_hsp,pct_oth_hsp,pct_hispanic,pct_multi,months_waiting,months_from_movein,pct_utility_allow,ave_util_allow,pct_bed1,pct_bed2,pct_bed3,pct_overhoused,tpoverty,tminority,tpct_ownsfd),
-  names_sort = TRUE
-)
-# sort the dataframe so that each set of unit counts and demographic variables are together by program
-names_to_order <- map(prefixes, ~ names(PSH_trct_2021)[grep(paste0(.x,"_"), names(PSH_trct_2021))]) %>% unlist
-names_id <- setdiff(names(PSH_trct_2021), names_to_order)
-PSH_trct_2021 <- PSH_trct_2021 %>%
-  select(names_id, names_to_order)
-rm(names_id, names_to_order,prefixes) # remove intermediate outputs
-
-# sum occupied units for the programs that have any reporting (not 6 or 7) to make formulas easier later
-PSH_trct_2021$pg1_occupied_units <- PSH_trct_2021$Pg1_total_units * PSH_trct_2021$Pg1_pct_occupied / 100
-PSH_trct_2021$pg2_occupied_units <- PSH_trct_2021$Pg2_total_units * PSH_trct_2021$Pg2_pct_occupied / 100
-PSH_trct_2021$pg3_occupied_units <- PSH_trct_2021$Pg3_total_units * PSH_trct_2021$Pg3_pct_occupied / 100
-PSH_trct_2021$pg4_occupied_units <- PSH_trct_2021$Pg4_total_units * PSH_trct_2021$Pg4_pct_occupied / 100
-PSH_trct_2021$pg5_occupied_units <- PSH_trct_2021$Pg5_total_units * PSH_trct_2021$Pg5_pct_occupied / 100
-PSH_trct_2021$pg8_occupied_units <- PSH_trct_2021$Pg8_total_units * PSH_trct_2021$Pg8_pct_occupied / 100
-PSH_trct_2021$pg9_occupied_units <- PSH_trct_2021$Pg9_total_units * PSH_trct_2021$Pg9_pct_occupied / 100
-
-###my code
-
-#Using LODES crosswalk
-
-NJ_xwalk=gzfile('nj_xwalk.csv.gz','rt') 
-NJ_xwalk=read.csv(NJ_xwalk,header=T) 
-
-NJ_xwalk_trct<-NJ_xwalk %>%
-  select(ctycsub, ctycsubname, trct,trctname)
-
-NJ_xwalk_trct<-NJ_xwalk_trct[!duplicated(NJ_xwalk_trct$trct),]
-
-NJ_xwalk_trct$trct<-as.character(NJ_xwalk_trct$trct)
-
-
-#append xwalk
-PSH_trct_appended <- left_join(PSH_trct_2021, NJ_xwalk_trct, by=c("code"="trct"))
-
-#select ctysubs of interest
-
-PSH_trct_appended <- subset(PSH_trct_appended, ctycsub=='3402970320'|ctycsub=='3402903050'|ctycsub=='3401304695'                  |ctycsub=='3401306260'|ctycsub=='3401974420'|ctycsub=='3400569990'|ctycsub=='3400129280'    |ctycsub=='3402129310'|ctycsub=='3401133120'|ctycsub=='3402133180'|ctycsub=='3401139450'|ctycsub=='3402139510'|ctycsub=='3401547250'|ctycsub=='3402347280'|ctycsub=='3402554270'|ctycsub=='3402954300'|ctycsub=='3401577180'|ctycsub=='3402777240'|ctycsub=='3404177300'|ctycsub=='3400569990'|ctycsub=='3403970020'|ctycsub=='3400577150'|ctycsub=='3400377135'|ctycsub=='3401924870'|ctycsub=='3401524840'|ctycsub=='3401974420'|ctycsub=='3403974480')
-##will's code part 2
-
-
-###{r the final aggregation}
-place_PSH_trcts_Final <- PSH_trct_appended %>%
-  dplyr::group_by(ctycsub) %>%
-  summarise(count = n(), 
-            name = ifelse(is.na(ctycsubname),
-                          MUNI_MUN_LABEL,
-                          substr(ctycsubname,1,nchar(ctycsubname))),
-            #county = str_to_title(COUNTY),
-            ## Program 1 - Summary of all HUD Programs (634 PLACE entries with units, 422 reporting demographics) ##
-            total_units = sum(Pg1_total_units, na.rm=TRUE), 
-            total_pct_occupied = (sum(pg1_occupied_units, na.rm=TRUE)/sum(Pg1_total_units, na.rm=TRUE)*100),
-            total_occupied = sum(pg1_occupied_units, na.rm=TRUE),
-            total_pct_reported = (sum(Pg1_number_reported, na.rm=TRUE)/sum(Pg1_total_units, na.rm=TRUE)*100),
-            total_reported = sum(Pg1_number_reported, na.rm=TRUE),
-            total_months_since_report = (sum(Pg1_number_reported * Pg1_months_since_report, na.rm=TRUE))/sum(Pg1_number_reported, na.rm=TRUE),
-            total_people_reporting = sum(Pg1_people_total, na.rm=TRUE),
-            total_people_per_unit = (sum(Pg1_people_total, na.rm=TRUE)/sum(Pg1_number_reported, na.rm=TRUE)),
-            # Rent and Income #
-            total_rent_per_month = (sum(Pg1_rent_per_month * Pg1_number_reported, na.rm=TRUE))/sum(Pg1_number_reported, na.rm=TRUE),
-            total_spending_per_month = (sum(Pg1_spending_per_month * Pg1_number_reported, na.rm=TRUE))/sum(Pg1_number_reported, na.rm=TRUE),
-            # Household Income Variables #
-            total_hh_income = (sum(Pg1_hh_income * Pg1_number_reported, na.rm=TRUE))/sum(Pg1_number_reported, na.rm=TRUE),
-            total_person_income = (sum(Pg1_person_income * Pg1_number_reported, na.rm=TRUE))/sum(Pg1_number_reported, na.rm=TRUE),
-            total_pct_lt5k = (sum(Pg1_pct_lt5k * Pg1_number_reported, na.rm=TRUE))/sum(Pg1_number_reported, na.rm=TRUE),
-            total_pct_5k_lt10k = (sum(Pg1_pct_5k_lt10k * Pg1_number_reported, na.rm=TRUE))/sum(Pg1_number_reported, na.rm=TRUE),
-            total_pct_10k_lt15k = (sum(Pg1_pct_10k_lt15k * Pg1_number_reported, na.rm=TRUE))/sum(Pg1_number_reported, na.rm=TRUE),
-            total_pct_15k_lt20k = (sum(Pg1_pct_15k_lt20k * Pg1_number_reported, na.rm=TRUE))/sum(Pg1_number_reported, na.rm=TRUE),
-            total_pct_ge20k = (sum(Pg1_pct_ge20k * Pg1_number_reported, na.rm=TRUE))/sum(Pg1_number_reported, na.rm=TRUE),
-            # Major Source of Income #
-            total_pct_wage_major = (sum(Pg1_pct_wage_major * Pg1_number_reported, na.rm=TRUE))/sum(Pg1_number_reported, na.rm=TRUE),
-            total_pct_welfare_major = (sum(Pg1_pct_welfare_major * Pg1_number_reported, na.rm=TRUE))/sum(Pg1_number_reported, na.rm=TRUE),
-            total_pct_other_major = (sum(Pg1_pct_other_major * Pg1_number_reported, na.rm=TRUE))/sum(Pg1_number_reported, na.rm=TRUE),
-            total_pct_median = (sum(Pg1_pct_median * Pg1_number_reported, na.rm=TRUE))/sum(Pg1_number_reported, na.rm=TRUE),
-            total_pct_lt50_median = (sum(Pg1_pct_lt50_median * Pg1_number_reported, na.rm=TRUE))/sum(Pg1_number_reported, na.rm=TRUE),
-            total_pct_lt30_median = (sum(Pg1_pct_lt30_median * Pg1_number_reported, na.rm=TRUE))/sum(Pg1_number_reported, na.rm=TRUE),
-            # Presence of Children #
-            total_pct_2adults = (sum(Pg1_pct_2adults * Pg1_number_reported, na.rm=TRUE))/sum(Pg1_number_reported, na.rm=TRUE),
-            total_pct_1adult = (sum(Pg1_pct_1adult * Pg1_number_reported, na.rm=TRUE))/sum(Pg1_number_reported, na.rm=TRUE),
-            total_pct_female_head = (sum(Pg1_pct_female_head * Pg1_number_reported, na.rm=TRUE))/sum(Pg1_number_reported, na.rm=TRUE),
-            total_pct_female_head_child = (sum(Pg1_pct_female_head_child * Pg1_number_reported, na.rm=TRUE))/sum(Pg1_number_reported, na.rm=TRUE),
-            # Head or Spouse or Co-Head Has a Disability #
-            total_pct_disabled_lt62 = (sum(Pg1_pct_disabled_lt62 * Pg1_number_reported, na.rm=TRUE))/sum(Pg1_number_reported, na.rm=TRUE),
-            total_pct_disabled_ge62 = (sum(Pg1_pct_disabled_ge62 * Pg1_number_reported, na.rm=TRUE))/sum(Pg1_number_reported, na.rm=TRUE),
-            total_pct_disabled_all = (sum(Pg1_pct_disabled_all * Pg1_number_reported, na.rm=TRUE))/sum(Pg1_number_reported, na.rm=TRUE),
-            # Age of Head/Spouse (Whoever is Older) #
-            total_pct_lt24_head = (sum(Pg1_pct_lt24_head * Pg1_number_reported, na.rm=TRUE))/sum(Pg1_number_reported, na.rm=TRUE),
-            total_pct_age25_50 = (sum(Pg1_pct_age25_50 * Pg1_number_reported, na.rm=TRUE))/sum(Pg1_number_reported, na.rm=TRUE),
-            total_pct_age51_61 = (sum(Pg1_pct_age51_61 * Pg1_number_reported, na.rm=TRUE))/sum(Pg1_number_reported, na.rm=TRUE),
-            total_pct_age62plus = (sum(Pg1_pct_age62plus * Pg1_number_reported, na.rm=TRUE))/sum(Pg1_number_reported, na.rm=TRUE),
-            total_pct_age85plus = (sum(Pg1_pct_age85plus * Pg1_number_reported, na.rm=TRUE))/sum(Pg1_number_reported, na.rm=TRUE),
-            # Race and Ethnicity #
-            total_pct_minority = (sum(Pg1_pct_minority * Pg1_number_reported, na.rm=TRUE))/sum(Pg1_number_reported, na.rm=TRUE),
-            total_pct_black_nonhsp = (sum(Pg1_pct_black_nonhsp * Pg1_number_reported, na.rm=TRUE))/sum(Pg1_number_reported, na.rm=TRUE),
-            total_pct_native_american_nonhsp = (sum(Pg1_pct_native_american_nonhsp * Pg1_number_reported, na.rm=TRUE))/sum(Pg1_number_reported, na.rm=TRUE),
-            total_pct_asian_pacific_nonhsp = (sum(Pg1_pct_asian_pacific_nonhsp * Pg1_number_reported, na.rm=TRUE))/sum(Pg1_number_reported, na.rm=TRUE),
-            total_pct_white_nothsp = (sum(Pg1_pct_white_nothsp * Pg1_number_reported, na.rm=TRUE))/sum(Pg1_number_reported, na.rm=TRUE),
-            total_pct_black_hsp = (sum(Pg1_pct_black_hsp * Pg1_number_reported, na.rm=TRUE))/sum(Pg1_number_reported, na.rm=TRUE),
-            total_pct_wht_hsp = (sum(Pg1_pct_wht_hsp * Pg1_number_reported, na.rm=TRUE))/sum(Pg1_number_reported, na.rm=TRUE),
-            total_pct_oth_hsp = (sum(Pg1_pct_oth_hsp * Pg1_number_reported, na.rm=TRUE))/sum(Pg1_number_reported, na.rm=TRUE),
-            total_pct_hispanic = (sum(Pg1_pct_hispanic * Pg1_number_reported, na.rm=TRUE))/sum(Pg1_number_reported, na.rm=TRUE),
-            total_pct_multi = (sum(Pg1_pct_multi * Pg1_number_reported, na.rm=TRUE))/sum(Pg1_number_reported, na.rm=TRUE),
-            # Social Conditions #
-            total_months_waiting = (sum(Pg1_months_waiting * Pg1_number_reported, na.rm=TRUE))/sum(Pg1_number_reported, na.rm=TRUE),
-            total_months_from_movein = (sum(Pg1_months_from_movein * Pg1_number_reported, na.rm=TRUE))/sum(Pg1_number_reported, na.rm=TRUE),
-            total_pct_utility_allow = (sum(Pg1_pct_utility_allow * Pg1_number_reported, na.rm=TRUE))/sum(Pg1_number_reported, na.rm=TRUE),
-            total_pct_lt5kave_util_allow = (sum(Pg1_ave_util_allow * Pg1_number_reported, na.rm=TRUE))/sum(Pg1_number_reported, na.rm=TRUE),
-            ## Program 2 - Public Housing (72 PLACE entries with units, 65 reporting demographics) ##
-            pg2_units = sum(Pg2_total_units, na.rm=TRUE), 
-            pg2_pct_occupied = ((sum(pg2_occupied_units, na.rm=TRUE))/sum(Pg2_total_units, na.rm=TRUE)*100),
-            pg2_occupied_units = sum(pg2_occupied_units, na.rm=TRUE),
-            pg2_pct_reported = (sum(Pg2_number_reported, na.rm=TRUE)/sum(pg2_occupied_units, na.rm=TRUE)*100),
-            pg2_reported_units = sum(Pg2_number_reported, na.rm=TRUE), 
-            pg2_months_since_report = (sum(Pg2_number_reported * Pg2_months_since_report, na.rm=TRUE))/sum(Pg2_number_reported, na.rm=TRUE),
-            pg2_people_reporting = sum(Pg2_people_total, na.rm=TRUE),
-            pg2_people_per_unit = (sum(Pg2_people_total, na.rm=TRUE)/sum(Pg2_number_reported, na.rm=TRUE)),
-            # Rent and Income #
-            pg2_rent_per_month = (sum(Pg2_rent_per_month * Pg2_number_reported, na.rm=TRUE))/sum(Pg2_number_reported, na.rm=TRUE),
-            pg2_spending_per_month = (sum(Pg2_spending_per_month * Pg2_number_reported, na.rm=TRUE))/sum(Pg2_number_reported, na.rm=TRUE),
-            # Household Income Variables #
-            pg2_hh_income = (sum(Pg2_hh_income * Pg2_number_reported, na.rm=TRUE))/sum(Pg2_number_reported, na.rm=TRUE),
-            pg2_person_income = (sum(Pg2_person_income * Pg2_number_reported, na.rm=TRUE))/sum(Pg2_number_reported, na.rm=TRUE),
-            pg2_pct_lt5k = (sum(Pg2_pct_lt5k * Pg2_number_reported, na.rm=TRUE))/sum(Pg2_number_reported, na.rm=TRUE),
-            pg2_pct_5k_lt10k = (sum(Pg2_pct_5k_lt10k * Pg2_number_reported, na.rm=TRUE))/sum(Pg2_number_reported, na.rm=TRUE),
-            pg2_pct_10k_lt15k = (sum(Pg2_pct_10k_lt15k * Pg2_number_reported, na.rm=TRUE))/sum(Pg2_number_reported, na.rm=TRUE),
-            pg2_pct_15k_lt20k = (sum(Pg2_pct_15k_lt20k * Pg2_number_reported, na.rm=TRUE))/sum(Pg2_number_reported, na.rm=TRUE),
-            pg2_pct_ge20k = (sum(Pg2_pct_ge20k * Pg2_number_reported, na.rm=TRUE))/sum(Pg2_number_reported, na.rm=TRUE),
-            # Major Source of Income #
-            pg2_pct_wage_major = (sum(Pg2_pct_wage_major * Pg2_number_reported, na.rm=TRUE))/sum(Pg2_number_reported, na.rm=TRUE),
-            pg2_pct_welfare_major = (sum(Pg2_pct_welfare_major * Pg2_number_reported, na.rm=TRUE))/sum(Pg2_number_reported, na.rm=TRUE),
-            pg2_pct_other_major = (sum(Pg2_pct_other_major * Pg2_number_reported, na.rm=TRUE))/sum(Pg2_number_reported, na.rm=TRUE),
-            pg2_pct_median = (sum(Pg2_pct_median * Pg2_number_reported, na.rm=TRUE))/sum(Pg2_number_reported, na.rm=TRUE),
-            pg2_pct_lt50_median = (sum(Pg2_pct_lt50_median * Pg2_number_reported, na.rm=TRUE))/sum(Pg2_number_reported, na.rm=TRUE),
-            pg2_pct_lt30_median = (sum(Pg2_pct_lt30_median * Pg2_number_reported, na.rm=TRUE))/sum(Pg2_number_reported, na.rm=TRUE),
-            # Presence of Children #
-            pg2_pct_2adults = (sum(Pg2_pct_2adults * Pg2_number_reported, na.rm=TRUE))/sum(Pg2_number_reported, na.rm=TRUE),
-            pg2_pct_1adult = (sum(Pg2_pct_1adult * Pg2_number_reported, na.rm=TRUE))/sum(Pg2_number_reported, na.rm=TRUE),
-            pg2_pct_female_head = (sum(Pg2_pct_female_head * Pg2_number_reported, na.rm=TRUE))/sum(Pg2_number_reported, na.rm=TRUE),
-            pg2_pct_female_head_child = (sum(Pg2_pct_female_head_child * Pg2_number_reported, na.rm=TRUE))/sum(Pg2_number_reported, na.rm=TRUE),
-            # Head or Spouse or Co-Head Has a Disability #
-            pg2_pct_disabled_lt62 = (sum(Pg2_pct_disabled_lt62 * Pg2_number_reported, na.rm=TRUE))/sum(Pg2_number_reported, na.rm=TRUE),
-            pg2_pct_disabled_ge62 = (sum(Pg2_pct_disabled_ge62 * Pg2_number_reported, na.rm=TRUE))/sum(Pg2_number_reported, na.rm=TRUE),
-            pg2_pct_disabled_all = (sum(Pg2_pct_disabled_all * Pg2_number_reported, na.rm=TRUE))/sum(Pg2_number_reported, na.rm=TRUE),
-            # Age of Head/Spouse (Whoever is Older) #
-            pg2_pct_lt24_head = (sum(Pg2_pct_lt24_head * Pg2_number_reported, na.rm=TRUE))/sum(Pg2_number_reported, na.rm=TRUE),
-            pg2_pct_age25_50 = (sum(Pg2_pct_age25_50 * Pg2_number_reported, na.rm=TRUE))/sum(Pg2_number_reported, na.rm=TRUE),
-            pg2_pct_age51_61 = (sum(Pg2_pct_age51_61 * Pg2_number_reported, na.rm=TRUE))/sum(Pg2_number_reported, na.rm=TRUE),
-            pg2_pct_age62plus = (sum(Pg2_pct_age62plus * Pg2_number_reported, na.rm=TRUE))/sum(Pg2_number_reported, na.rm=TRUE),
-            pg2_pct_age85plus = (sum(Pg2_pct_age85plus * Pg2_number_reported, na.rm=TRUE))/sum(Pg2_number_reported, na.rm=TRUE),
-            # Race and Ethnicity #
-            pg2_pct_minority = (sum(Pg2_pct_minority * Pg2_number_reported, na.rm=TRUE))/sum(Pg2_number_reported, na.rm=TRUE),
-            pg2_pct_black_nonhsp = (sum(Pg2_pct_black_nonhsp * Pg2_number_reported, na.rm=TRUE))/sum(Pg2_number_reported, na.rm=TRUE),
-            pg2_pct_native_american_nonhsp = (sum(Pg2_pct_native_american_nonhsp * Pg2_number_reported, na.rm=TRUE))/sum(Pg2_number_reported, na.rm=TRUE),
-            pg2_pct_asian_pacific_nonhsp = (sum(Pg2_pct_asian_pacific_nonhsp * Pg2_number_reported, na.rm=TRUE))/sum(Pg2_number_reported, na.rm=TRUE),
-            pg2_pct_white_nothsp = (sum(Pg2_pct_white_nothsp * Pg2_number_reported, na.rm=TRUE))/sum(Pg2_number_reported, na.rm=TRUE),
-            pg2_pct_black_hsp = (sum(Pg2_pct_black_hsp * Pg2_number_reported, na.rm=TRUE))/sum(Pg2_number_reported, na.rm=TRUE),
-            pg2_pct_wht_hsp = (sum(Pg2_pct_wht_hsp * Pg2_number_reported, na.rm=TRUE))/sum(Pg2_number_reported, na.rm=TRUE),
-            pg2_pct_oth_hsp = (sum(Pg2_pct_oth_hsp * Pg2_number_reported, na.rm=TRUE))/sum(Pg2_number_reported, na.rm=TRUE),
-            pg2_pct_hispanic = (sum(Pg2_pct_hispanic * Pg2_number_reported, na.rm=TRUE))/sum(Pg2_number_reported, na.rm=TRUE),
-            pg2_pct_multi = (sum(Pg2_pct_multi * Pg2_number_reported, na.rm=TRUE))/sum(Pg2_number_reported, na.rm=TRUE),
-            # Social Conditions #
-            pg2_months_waiting = (sum(Pg2_months_waiting * Pg2_number_reported, na.rm=TRUE))/sum(Pg2_number_reported, na.rm=TRUE),
-            pg2_months_from_movein = (sum(Pg2_months_from_movein * Pg2_number_reported, na.rm=TRUE))/sum(Pg2_number_reported, na.rm=TRUE),
-            pg2_pct_utility_allow = (sum(Pg2_pct_utility_allow * Pg2_number_reported, na.rm=TRUE))/sum(Pg2_number_reported, na.rm=TRUE),
-            pg2_pct_lt5kave_util_allow = (sum(Pg2_ave_util_allow * Pg2_number_reported, na.rm=TRUE))/sum(Pg2_number_reported, na.rm=TRUE),
-            # Number of Bedrooms #
-            pg2_pct_bed1 = (sum(Pg2_pct_bed1 * Pg2_number_reported, na.rm=TRUE))/sum(Pg2_number_reported, na.rm=TRUE),
-            pg2_pct_bed2 = (sum(Pg2_pct_bed2 * Pg2_number_reported, na.rm=TRUE))/sum(Pg2_number_reported, na.rm=TRUE),
-            pg2_pct_bed3 = (sum(Pg2_pct_bed3 * Pg2_number_reported, na.rm=TRUE))/sum(Pg2_number_reported, na.rm=TRUE),
-            pg2_pct_overhoused = (sum(Pg2_pct_overhoused * Pg2_number_reported, na.rm=TRUE))/sum(Pg2_number_reported, na.rm=TRUE),
-            # Surrounding Census Tract #
-            pg2_tpoverty = (sum(Pg2_tpoverty * Pg2_number_reported, na.rm=TRUE))/sum(Pg2_number_reported, na.rm=TRUE),
-            pg2_tminority = (sum(Pg2_tminority * Pg2_number_reported, na.rm=TRUE))/sum(Pg2_number_reported, na.rm=TRUE),
-            pg2_tpct_ownsfd = (sum(Pg2_tpct_ownsfd * Pg2_number_reported, na.rm=TRUE))/sum(Pg2_number_reported, na.rm=TRUE),
-            ## Program 3 - Housing Choice Vouchers (627 PLACE entries with units, 368 reporting demographics) ##
-            pg3_units = sum(Pg3_total_units, na.rm=TRUE), 
-            pg3_pct_occupied = (sum(pg3_occupied_units, na.rm=TRUE))/sum(Pg3_total_units, na.rm=TRUE),
-            pg3_occupied_units = sum(pg3_occupied_units, na.rm=TRUE),
-            pg3_pct_reported = (sum(Pg3_number_reported, na.rm=TRUE)/sum(pg3_occupied_units, na.rm=TRUE)*100),
-            pg3_reported_units = sum(Pg3_number_reported, na.rm=TRUE), 
-            pg3_months_since_report = (sum(pg3_occupied_units * Pg3_months_since_report, na.rm=TRUE))/sum(Pg3_number_reported, na.rm=TRUE),
-            pg3_people_reporting = sum(Pg3_people_total, na.rm=TRUE),
-            pg3_people_per_unit = (sum(Pg3_people_total, na.rm=TRUE)/sum(pg3_occupied_units, na.rm=TRUE)),
-            pg3_months_since_report = (sum(Pg3_number_reported * Pg3_months_since_report, na.rm=TRUE))/sum(Pg3_number_reported, na.rm=TRUE),
-            pg3_people_reporting = sum(Pg3_people_total, na.rm=TRUE),
-            pg3_people_per_unit = (sum(Pg3_people_total, na.rm=TRUE)/sum(Pg3_number_reported, na.rm=TRUE)),
-            # Rent and Income #
-            pg3_rent_per_month = (sum(Pg3_rent_per_month * Pg3_number_reported, na.rm=TRUE))/sum(Pg3_number_reported, na.rm=TRUE),
-            pg3_spending_per_month = (sum(Pg3_spending_per_month * Pg3_number_reported, na.rm=TRUE))/sum(Pg3_number_reported, na.rm=TRUE),
-            # Household Income Variables #
-            pg3_hh_income = (sum(Pg3_hh_income * Pg3_number_reported, na.rm=TRUE))/sum(Pg3_number_reported, na.rm=TRUE),
-            pg3_person_income = (sum(Pg3_person_income * Pg3_number_reported, na.rm=TRUE))/sum(Pg3_number_reported, na.rm=TRUE),
-            pg3_pct_lt5k = (sum(Pg3_pct_lt5k * Pg3_number_reported, na.rm=TRUE))/sum(Pg3_number_reported, na.rm=TRUE),
-            pg3_pct_5k_lt10k = (sum(Pg3_pct_5k_lt10k * Pg3_number_reported, na.rm=TRUE))/sum(Pg3_number_reported, na.rm=TRUE),
-            pg3_pct_10k_lt15k = (sum(Pg3_pct_10k_lt15k * Pg3_number_reported, na.rm=TRUE))/sum(Pg3_number_reported, na.rm=TRUE),
-            pg3_pct_15k_lt20k = (sum(Pg3_pct_15k_lt20k * Pg3_number_reported, na.rm=TRUE))/sum(Pg3_number_reported, na.rm=TRUE),
-            pg3_pct_ge20k = (sum(Pg3_pct_ge20k * Pg3_number_reported, na.rm=TRUE))/sum(Pg3_number_reported, na.rm=TRUE),
-            # Major Source of Income #
-            pg3_pct_wage_major = (sum(Pg3_pct_wage_major * Pg3_number_reported, na.rm=TRUE))/sum(Pg3_number_reported, na.rm=TRUE),
-            pg3_pct_welfare_major = (sum(Pg3_pct_welfare_major * Pg3_number_reported, na.rm=TRUE))/sum(Pg3_number_reported, na.rm=TRUE),
-            pg3_pct_other_major = (sum(Pg3_pct_other_major * Pg3_number_reported, na.rm=TRUE))/sum(Pg3_number_reported, na.rm=TRUE),
-            pg3_pct_median = (sum(Pg3_pct_median * Pg3_number_reported, na.rm=TRUE))/sum(Pg3_number_reported, na.rm=TRUE),
-            pg3_pct_lt50_median = (sum(Pg3_pct_lt50_median * Pg3_number_reported, na.rm=TRUE))/sum(Pg3_number_reported, na.rm=TRUE),
-            pg3_pct_lt30_median = (sum(Pg3_pct_lt30_median * Pg3_number_reported, na.rm=TRUE))/sum(Pg3_number_reported, na.rm=TRUE),
-            # Presence of Children #
-            pg3_pct_2adults = (sum(Pg3_pct_2adults * Pg3_number_reported, na.rm=TRUE))/sum(Pg3_number_reported, na.rm=TRUE),
-            pg3_pct_1adult = (sum(Pg3_pct_1adult * Pg3_number_reported, na.rm=TRUE))/sum(Pg3_number_reported, na.rm=TRUE),
-            pg3_pct_female_head = (sum(Pg3_pct_female_head * Pg3_number_reported, na.rm=TRUE))/sum(Pg3_number_reported, na.rm=TRUE),
-            pg3_pct_female_head_child = (sum(Pg3_pct_female_head_child * Pg3_number_reported, na.rm=TRUE))/sum(Pg3_number_reported, na.rm=TRUE),
-            # Head or Spouse or Co-Head Has a Disability #
-            pg3_pct_disabled_lt62 = (sum(Pg3_pct_disabled_lt62 * Pg3_number_reported, na.rm=TRUE))/sum(Pg3_number_reported, na.rm=TRUE),
-            pg3_pct_disabled_ge62 = (sum(Pg3_pct_disabled_ge62 * Pg3_number_reported, na.rm=TRUE))/sum(Pg3_number_reported, na.rm=TRUE),
-            pg3_pct_disabled_all = (sum(Pg3_pct_disabled_all * Pg3_number_reported, na.rm=TRUE))/sum(Pg3_number_reported, na.rm=TRUE),
-            # Age of Head/Spouse (Whoever is Older) #
-            pg3_pct_lt24_head = (sum(Pg3_pct_lt24_head * Pg3_number_reported, na.rm=TRUE))/sum(Pg3_number_reported, na.rm=TRUE),
-            pg3_pct_age25_50 = (sum(Pg3_pct_age25_50 * Pg3_number_reported, na.rm=TRUE))/sum(Pg3_number_reported, na.rm=TRUE),
-            pg3_pct_age51_61 = (sum(Pg3_pct_age51_61 * Pg3_number_reported, na.rm=TRUE))/sum(Pg3_number_reported, na.rm=TRUE),
-            pg3_pct_age62plus = (sum(Pg3_pct_age62plus * Pg3_number_reported, na.rm=TRUE))/sum(Pg3_number_reported, na.rm=TRUE),
-            pg3_pct_age85plus = (sum(Pg3_pct_age85plus * Pg3_number_reported, na.rm=TRUE))/sum(Pg3_number_reported, na.rm=TRUE),
-            # Race and Ethnicity #
-            pg3_pct_minority = (sum(Pg3_pct_minority * Pg3_number_reported, na.rm=TRUE))/sum(Pg3_number_reported, na.rm=TRUE),
-            pg3_pct_black_nonhsp = (sum(Pg3_pct_black_nonhsp * Pg3_number_reported, na.rm=TRUE))/sum(Pg3_number_reported, na.rm=TRUE),
-            pg3_pct_native_american_nonhsp = (sum(Pg3_pct_native_american_nonhsp * Pg3_number_reported, na.rm=TRUE))/sum(Pg3_number_reported, na.rm=TRUE),
-            pg3_pct_asian_pacific_nonhsp = (sum(Pg3_pct_asian_pacific_nonhsp * Pg3_number_reported, na.rm=TRUE))/sum(Pg3_number_reported, na.rm=TRUE),
-            pg3_pct_white_nothsp = (sum(Pg3_pct_white_nothsp * Pg3_number_reported, na.rm=TRUE))/sum(Pg3_number_reported, na.rm=TRUE),
-            pg3_pct_black_hsp = (sum(Pg3_pct_black_hsp * Pg3_number_reported, na.rm=TRUE))/sum(Pg3_number_reported, na.rm=TRUE),
-            pg3_pct_wht_hsp = (sum(Pg3_pct_wht_hsp * Pg3_number_reported, na.rm=TRUE))/sum(Pg3_number_reported, na.rm=TRUE),
-            pg3_pct_oth_hsp = (sum(Pg3_pct_oth_hsp * Pg3_number_reported, na.rm=TRUE))/sum(Pg3_number_reported, na.rm=TRUE),
-            pg3_pct_hispanic = (sum(Pg3_pct_hispanic * Pg3_number_reported, na.rm=TRUE))/sum(Pg3_number_reported, na.rm=TRUE),
-            pg3_pct_multi = (sum(Pg3_pct_multi * Pg3_number_reported, na.rm=TRUE))/sum(Pg3_number_reported, na.rm=TRUE),
-            # Social Conditions #
-            pg3_months_waiting = (sum(Pg3_months_waiting * Pg3_number_reported, na.rm=TRUE))/sum(Pg3_number_reported, na.rm=TRUE),
-            pg3_months_from_movein = (sum(Pg3_months_from_movein * Pg3_number_reported, na.rm=TRUE))/sum(Pg3_number_reported, na.rm=TRUE),
-            pg3_pct_utility_allow = (sum(Pg3_pct_utility_allow * Pg3_number_reported, na.rm=TRUE))/sum(Pg3_number_reported, na.rm=TRUE),
-            pg3_pct_lt5kave_util_allow = (sum(Pg3_ave_util_allow * Pg3_number_reported, na.rm=TRUE))/sum(Pg3_number_reported, na.rm=TRUE),
-            ## Program 4 - Moderate Rehabilitation (13 PLACE entries with units, 8 reporting demographics) ##
-            pg4_units = sum(Pg4_total_units, na.rm=TRUE), 
-            pg4_pct_occupied = (sum(pg4_occupied_units, na.rm=TRUE))/sum(Pg4_total_units, na.rm=TRUE),
-            pg4_occupied_units = sum(pg4_occupied_units, na.rm=TRUE),
-            pg4_pct_reported = (sum(Pg4_number_reported, na.rm=TRUE)/sum(pg4_occupied_units, na.rm=TRUE)*100),
-            pg4_reported_units = sum(Pg4_number_reported, na.rm=TRUE), 
-            pg4_months_since_report = (sum(pg4_occupied_units * Pg4_months_since_report, na.rm=TRUE))/sum(Pg4_number_reported, na.rm=TRUE),
-            pg4_people_reporting = sum(Pg4_people_total, na.rm=TRUE),
-            pg4_people_per_unit = (sum(Pg4_people_total, na.rm=TRUE)/sum(pg4_occupied_units, na.rm=TRUE)),
-            pg4_months_since_report = (sum(Pg4_number_reported * Pg4_months_since_report, na.rm=TRUE))/sum(Pg4_number_reported, na.rm=TRUE),
-            pg4_people_reporting = sum(Pg4_people_total, na.rm=TRUE),
-            pg4_people_per_unit = (sum(Pg4_people_total, na.rm=TRUE)/sum(Pg4_number_reported, na.rm=TRUE)),
-            # Rent and Income #
-            pg4_rent_per_month = (sum(Pg4_rent_per_month * Pg4_number_reported, na.rm=TRUE))/sum(Pg4_number_reported, na.rm=TRUE),
-            pg4_spending_per_month = (sum(Pg4_spending_per_month * Pg4_number_reported, na.rm=TRUE))/sum(Pg4_number_reported, na.rm=TRUE),
-            # Household Income Variables #
-            pg4_hh_income = (sum(Pg4_hh_income * Pg4_number_reported, na.rm=TRUE))/sum(Pg4_number_reported, na.rm=TRUE),
-            pg4_person_income = (sum(Pg4_person_income * Pg4_number_reported, na.rm=TRUE))/sum(Pg4_number_reported, na.rm=TRUE),
-            pg4_pct_lt5k = (sum(Pg4_pct_lt5k * Pg4_number_reported, na.rm=TRUE))/sum(Pg4_number_reported, na.rm=TRUE),
-            pg4_pct_5k_lt10k = (sum(Pg4_pct_5k_lt10k * Pg4_number_reported, na.rm=TRUE))/sum(Pg4_number_reported, na.rm=TRUE),
-            pg4_pct_10k_lt15k = (sum(Pg4_pct_10k_lt15k * Pg4_number_reported, na.rm=TRUE))/sum(Pg4_number_reported, na.rm=TRUE),
-            pg4_pct_15k_lt20k = (sum(Pg4_pct_15k_lt20k * Pg4_number_reported, na.rm=TRUE))/sum(Pg4_number_reported, na.rm=TRUE),
-            pg4_pct_ge20k = (sum(Pg4_pct_ge20k * Pg4_number_reported, na.rm=TRUE))/sum(Pg4_number_reported, na.rm=TRUE),
-            # Major Source of Income #
-            pg4_pct_wage_major = (sum(Pg4_pct_wage_major * Pg4_number_reported, na.rm=TRUE))/sum(Pg4_number_reported, na.rm=TRUE),
-            pg4_pct_welfare_major = (sum(Pg4_pct_welfare_major * Pg4_number_reported, na.rm=TRUE))/sum(Pg4_number_reported, na.rm=TRUE),
-            pg4_pct_other_major = (sum(Pg4_pct_other_major * Pg4_number_reported, na.rm=TRUE))/sum(Pg4_number_reported, na.rm=TRUE),
-            pg4_pct_median = (sum(Pg4_pct_median * Pg4_number_reported, na.rm=TRUE))/sum(Pg4_number_reported, na.rm=TRUE),
-            pg4_pct_lt50_median = (sum(Pg4_pct_lt50_median * Pg4_number_reported, na.rm=TRUE))/sum(Pg4_number_reported, na.rm=TRUE),
-            pg4_pct_lt30_median = (sum(Pg4_pct_lt30_median * Pg4_number_reported, na.rm=TRUE))/sum(Pg4_number_reported, na.rm=TRUE),
-            # Presence of Children #
-            pg4_pct_2adults = (sum(Pg4_pct_2adults * Pg4_number_reported, na.rm=TRUE))/sum(Pg4_number_reported, na.rm=TRUE),
-            pg4_pct_1adult = (sum(Pg4_pct_1adult * Pg4_number_reported, na.rm=TRUE))/sum(Pg4_number_reported, na.rm=TRUE),
-            pg4_pct_female_head = (sum(Pg4_pct_female_head * Pg4_number_reported, na.rm=TRUE))/sum(Pg4_number_reported, na.rm=TRUE),
-            pg4_pct_female_head_child = (sum(Pg4_pct_female_head_child * Pg4_number_reported, na.rm=TRUE))/sum(Pg4_number_reported, na.rm=TRUE),
-            # Head or Spouse or Co-Head Has a Disability #
-            pg4_pct_disabled_lt62 = (sum(Pg4_pct_disabled_lt62 * Pg4_number_reported, na.rm=TRUE))/sum(Pg4_number_reported, na.rm=TRUE),
-            pg4_pct_disabled_ge62 = (sum(Pg4_pct_disabled_ge62 * Pg4_number_reported, na.rm=TRUE))/sum(Pg4_number_reported, na.rm=TRUE),
-            pg4_pct_disabled_all = (sum(Pg4_pct_disabled_all * Pg4_number_reported, na.rm=TRUE))/sum(Pg4_number_reported, na.rm=TRUE),
-            # Age of Head/Spouse (Whoever is Older) #
-            pg4_pct_lt24_head = (sum(Pg4_pct_lt24_head * Pg4_number_reported, na.rm=TRUE))/sum(Pg4_number_reported, na.rm=TRUE),
-            pg4_pct_age25_50 = (sum(Pg4_pct_age25_50 * Pg4_number_reported, na.rm=TRUE))/sum(Pg4_number_reported, na.rm=TRUE),
-            pg4_pct_age51_61 = (sum(Pg4_pct_age51_61 * Pg4_number_reported, na.rm=TRUE))/sum(Pg4_number_reported, na.rm=TRUE),
-            pg4_pct_age62plus = (sum(Pg4_pct_age62plus * Pg4_number_reported, na.rm=TRUE))/sum(Pg4_number_reported, na.rm=TRUE),
-            pg4_pct_age85plus = (sum(Pg4_pct_age85plus * Pg4_number_reported, na.rm=TRUE))/sum(Pg4_number_reported, na.rm=TRUE),
-            # Race and Ethnicity #
-            pg4_pct_minority = (sum(Pg4_pct_minority * Pg4_number_reported, na.rm=TRUE))/sum(Pg4_number_reported, na.rm=TRUE),
-            pg4_pct_black_nonhsp = (sum(Pg4_pct_black_nonhsp * Pg4_number_reported, na.rm=TRUE))/sum(Pg4_number_reported, na.rm=TRUE),
-            pg4_pct_native_american_nonhsp = (sum(Pg4_pct_native_american_nonhsp * Pg4_number_reported, na.rm=TRUE))/sum(Pg4_number_reported, na.rm=TRUE),
-            pg4_pct_asian_pacific_nonhsp = (sum(Pg4_pct_asian_pacific_nonhsp * Pg4_number_reported, na.rm=TRUE))/sum(Pg4_number_reported, na.rm=TRUE),
-            pg4_pct_white_nothsp = (sum(Pg4_pct_white_nothsp * Pg4_number_reported, na.rm=TRUE))/sum(Pg4_number_reported, na.rm=TRUE),
-            pg4_pct_black_hsp = (sum(Pg4_pct_black_hsp * Pg4_number_reported, na.rm=TRUE))/sum(Pg4_number_reported, na.rm=TRUE),
-            pg4_pct_wht_hsp = (sum(Pg4_pct_wht_hsp * Pg4_number_reported, na.rm=TRUE))/sum(Pg4_number_reported, na.rm=TRUE),
-            pg4_pct_oth_hsp = (sum(Pg4_pct_oth_hsp * Pg4_number_reported, na.rm=TRUE))/sum(Pg4_number_reported, na.rm=TRUE),
-            pg4_pct_hispanic = (sum(Pg4_pct_hispanic * Pg4_number_reported, na.rm=TRUE))/sum(Pg4_number_reported, na.rm=TRUE),
-            pg4_pct_multi = (sum(Pg4_pct_multi * Pg4_number_reported, na.rm=TRUE))/sum(Pg4_number_reported, na.rm=TRUE),
-            # Social Conditions #
-            pg4_months_waiting = (sum(Pg4_months_waiting * Pg4_number_reported, na.rm=TRUE))/sum(Pg4_number_reported, na.rm=TRUE),
-            pg4_months_from_movein = (sum(Pg4_months_from_movein * Pg4_number_reported, na.rm=TRUE))/sum(Pg4_number_reported, na.rm=TRUE),
-            pg4_pct_utility_allow = (sum(Pg4_pct_utility_allow * Pg4_number_reported, na.rm=TRUE))/sum(Pg4_number_reported, na.rm=TRUE),
-            pg4_pct_lt5kave_util_allow = (sum(Pg4_ave_util_allow * Pg4_number_reported, na.rm=TRUE))/sum(Pg4_number_reported, na.rm=TRUE),
-            ## Program 5 - Project Based Section 8 (224 PLACE entries with units, 155 reporting demographics) ##
-            pg5_units = sum(Pg5_total_units, na.rm=TRUE), 
-            pg5_pct_occupied = (sum(pg5_occupied_units, na.rm=TRUE))/sum(Pg5_total_units, na.rm=TRUE),
-            pg5_occupied_units = sum(pg5_occupied_units, na.rm=TRUE),
-            pg5_pct_reported = (sum(Pg5_number_reported, na.rm=TRUE)/sum(pg5_occupied_units, na.rm=TRUE)*100),
-            pg5_reported_units = sum(Pg5_number_reported, na.rm=TRUE), 
-            pg5_months_since_report = (sum(pg5_occupied_units * Pg5_months_since_report, na.rm=TRUE))/sum(Pg5_number_reported, na.rm=TRUE),
-            pg5_people_reporting = sum(Pg5_people_total, na.rm=TRUE),
-            pg5_people_per_unit = (sum(Pg5_people_total, na.rm=TRUE)/sum(pg5_occupied_units, na.rm=TRUE)),
-            pg5_months_since_report = (sum(Pg5_number_reported * Pg5_months_since_report, na.rm=TRUE))/sum(Pg5_number_reported, na.rm=TRUE),
-            pg5_people_reporting = sum(Pg5_people_total, na.rm=TRUE),
-            pg5_people_per_unit = (sum(Pg5_people_total, na.rm=TRUE)/sum(Pg5_number_reported, na.rm=TRUE)),
-            # Rent and Income #
-            pg5_rent_per_month = (sum(Pg5_rent_per_month * Pg5_number_reported, na.rm=TRUE))/sum(Pg5_number_reported, na.rm=TRUE),
-            pg5_spending_per_month = (sum(Pg5_spending_per_month * Pg5_number_reported, na.rm=TRUE))/sum(Pg5_number_reported, na.rm=TRUE),
-            # Household Income Variables #
-            pg5_hh_income = (sum(Pg5_hh_income * Pg5_number_reported, na.rm=TRUE))/sum(Pg5_number_reported, na.rm=TRUE),
-            pg5_person_income = (sum(Pg5_person_income * Pg5_number_reported, na.rm=TRUE))/sum(Pg5_number_reported, na.rm=TRUE),
-            pg5_pct_lt5k = (sum(Pg5_pct_lt5k * Pg5_number_reported, na.rm=TRUE))/sum(Pg5_number_reported, na.rm=TRUE),
-            pg5_pct_5k_lt10k = (sum(Pg5_pct_5k_lt10k * Pg5_number_reported, na.rm=TRUE))/sum(Pg5_number_reported, na.rm=TRUE),
-            pg5_pct_10k_lt15k = (sum(Pg5_pct_10k_lt15k * Pg5_number_reported, na.rm=TRUE))/sum(Pg5_number_reported, na.rm=TRUE),
-            pg5_pct_15k_lt20k = (sum(Pg5_pct_15k_lt20k * Pg5_number_reported, na.rm=TRUE))/sum(Pg5_number_reported, na.rm=TRUE),
-            pg5_pct_ge20k = (sum(Pg5_pct_ge20k * Pg5_number_reported, na.rm=TRUE))/sum(Pg5_number_reported, na.rm=TRUE),
-            # Major Source of Income #
-            pg5_pct_wage_major = (sum(Pg5_pct_wage_major * Pg5_number_reported, na.rm=TRUE))/sum(Pg5_number_reported, na.rm=TRUE),
-            pg5_pct_welfare_major = (sum(Pg5_pct_welfare_major * Pg5_number_reported, na.rm=TRUE))/sum(Pg5_number_reported, na.rm=TRUE),
-            pg5_pct_other_major = (sum(Pg5_pct_other_major * Pg5_number_reported, na.rm=TRUE))/sum(Pg5_number_reported, na.rm=TRUE),
-            pg5_pct_median = (sum(Pg5_pct_median * Pg5_number_reported, na.rm=TRUE))/sum(Pg5_number_reported, na.rm=TRUE),
-            pg5_pct_lt50_median = (sum(Pg5_pct_lt50_median * Pg5_number_reported, na.rm=TRUE))/sum(Pg5_number_reported, na.rm=TRUE),
-            pg5_pct_lt30_median = (sum(Pg5_pct_lt30_median * Pg5_number_reported, na.rm=TRUE))/sum(Pg5_number_reported, na.rm=TRUE),
-            # Presence of Children #
-            pg5_pct_2adults = (sum(Pg5_pct_2adults * Pg5_number_reported, na.rm=TRUE))/sum(Pg5_number_reported, na.rm=TRUE),
-            pg5_pct_1adult = (sum(Pg5_pct_1adult * Pg5_number_reported, na.rm=TRUE))/sum(Pg5_number_reported, na.rm=TRUE),
-            pg5_pct_female_head = (sum(Pg5_pct_female_head * Pg5_number_reported, na.rm=TRUE))/sum(Pg5_number_reported, na.rm=TRUE),
-            pg5_pct_female_head_child = (sum(Pg5_pct_female_head_child * Pg5_number_reported, na.rm=TRUE))/sum(Pg5_number_reported, na.rm=TRUE),
-            # Head or Spouse or Co-Head Has a Disability #
-            pg5_pct_disabled_lt62 = (sum(Pg5_pct_disabled_lt62 * Pg5_number_reported, na.rm=TRUE))/sum(Pg5_number_reported, na.rm=TRUE),
-            pg5_pct_disabled_ge62 = (sum(Pg5_pct_disabled_ge62 * Pg5_number_reported, na.rm=TRUE))/sum(Pg5_number_reported, na.rm=TRUE),
-            pg5_pct_disabled_all = (sum(Pg5_pct_disabled_all * Pg5_number_reported, na.rm=TRUE))/sum(Pg5_number_reported, na.rm=TRUE),
-            # Age of Head/Spouse (Whoever is Older) #
-            pg5_pct_lt24_head = (sum(Pg5_pct_lt24_head * Pg5_number_reported, na.rm=TRUE))/sum(Pg5_number_reported, na.rm=TRUE),
-            pg5_pct_age25_50 = (sum(Pg5_pct_age25_50 * Pg5_number_reported, na.rm=TRUE))/sum(Pg5_number_reported, na.rm=TRUE),
-            pg5_pct_age51_61 = (sum(Pg5_pct_age51_61 * Pg5_number_reported, na.rm=TRUE))/sum(Pg5_number_reported, na.rm=TRUE),
-            pg5_pct_age62plus = (sum(Pg5_pct_age62plus * Pg5_number_reported, na.rm=TRUE))/sum(Pg5_number_reported, na.rm=TRUE),
-            pg5_pct_age85plus = (sum(Pg5_pct_age85plus * Pg5_number_reported, na.rm=TRUE))/sum(Pg5_number_reported, na.rm=TRUE),
-            # Race and Ethnicity #
-            pg5_pct_minority = (sum(Pg5_pct_minority * Pg5_number_reported, na.rm=TRUE))/sum(Pg5_number_reported, na.rm=TRUE),
-            pg5_pct_black_nonhsp = (sum(Pg5_pct_black_nonhsp * Pg5_number_reported, na.rm=TRUE))/sum(Pg5_number_reported, na.rm=TRUE),
-            pg5_pct_native_american_nonhsp = (sum(Pg5_pct_native_american_nonhsp * Pg5_number_reported, na.rm=TRUE))/sum(Pg5_number_reported, na.rm=TRUE),
-            pg5_pct_asian_pacific_nonhsp = (sum(Pg5_pct_asian_pacific_nonhsp * Pg5_number_reported, na.rm=TRUE))/sum(Pg5_number_reported, na.rm=TRUE),
-            pg5_pct_white_nothsp = (sum(Pg5_pct_white_nothsp * Pg5_number_reported, na.rm=TRUE))/sum(Pg5_number_reported, na.rm=TRUE),
-            pg5_pct_black_hsp = (sum(Pg5_pct_black_hsp * Pg5_number_reported, na.rm=TRUE))/sum(Pg5_number_reported, na.rm=TRUE),
-            pg5_pct_wht_hsp = (sum(Pg5_pct_wht_hsp * Pg5_number_reported, na.rm=TRUE))/sum(Pg5_number_reported, na.rm=TRUE),
-            pg5_pct_oth_hsp = (sum(Pg5_pct_oth_hsp * Pg5_number_reported, na.rm=TRUE))/sum(Pg5_number_reported, na.rm=TRUE),
-            pg5_pct_hispanic = (sum(Pg5_pct_hispanic * Pg5_number_reported, na.rm=TRUE))/sum(Pg5_number_reported, na.rm=TRUE),
-            pg5_pct_multi = (sum(Pg5_pct_multi * Pg5_number_reported, na.rm=TRUE))/sum(Pg5_number_reported, na.rm=TRUE),
-            # Social Conditions #
-            pg5_months_waiting = (sum(Pg5_months_waiting * Pg5_number_reported, na.rm=TRUE))/sum(Pg5_number_reported, na.rm=TRUE),
-            pg5_months_from_movein = (sum(Pg5_months_from_movein * Pg5_number_reported, na.rm=TRUE))/sum(Pg5_number_reported, na.rm=TRUE),
-            pg5_pct_utility_allow = (sum(Pg5_pct_utility_allow * Pg5_number_reported, na.rm=TRUE))/sum(Pg5_number_reported, na.rm=TRUE),
-            pg5_pct_lt5kave_util_allow = (sum(Pg5_ave_util_allow * Pg5_number_reported, na.rm=TRUE))/sum(Pg5_number_reported, na.rm=TRUE),
-            ## Program 6 - RentSup/RAP (1 PLACE entry with units, 0 reporting demographics) ##
-            #pg6_units = sum(Pg6_total_units, na.rm=TRUE), # nothing more to say since no reporting (all NAs)
-            ## Program 7 - S236/BMIR (12 PLACE entries with units, 0 reporting demographics) ##
-            pg7_units = sum(Pg7_total_units, na.rm=TRUE), # nothing more to say since no demographic reporting
-            pg7_reported = sum(Pg7_number_reported, na.rm=TRUE), 
-            pg7_pct_reported = (sum(Pg7_number_reported, na.rm=TRUE)/sum(Pg7_total_units, na.rm=TRUE)*100),
-            ## Program 8 - 202/PRAC (60 PLACE entries with units, 50 reporting demographics) ##
-            pg8_units = sum(Pg8_total_units, na.rm=TRUE), 
-            pg8_pct_occupied = (sum(pg8_occupied_units, na.rm=TRUE))/sum(Pg8_total_units, na.rm=TRUE),
-            pg8_occupied_units = sum(pg8_occupied_units, na.rm=TRUE),
-            pg8_pct_reported = (sum(Pg8_number_reported, na.rm=TRUE)/sum(pg8_occupied_units, na.rm=TRUE)*100),
-            pg8_reported_units = sum(Pg8_number_reported, na.rm=TRUE), 
-            pg8_months_since_report = (sum(pg8_occupied_units * Pg8_months_since_report, na.rm=TRUE))/sum(Pg8_number_reported, na.rm=TRUE),
-            pg8_people_reporting = sum(Pg8_people_total, na.rm=TRUE),
-            pg8_people_per_unit = (sum(Pg8_people_total, na.rm=TRUE)/sum(pg8_occupied_units, na.rm=TRUE)),
-            pg8_months_since_report = (sum(Pg8_number_reported * Pg8_months_since_report, na.rm=TRUE))/sum(Pg8_number_reported, na.rm=TRUE),
-            pg8_people_reporting = sum(Pg8_people_total, na.rm=TRUE),
-            pg8_people_per_unit = (sum(Pg8_people_total, na.rm=TRUE)/sum(Pg8_number_reported, na.rm=TRUE)),
-            # Rent and Income #
-            pg8_rent_per_month = (sum(Pg8_rent_per_month * Pg8_number_reported, na.rm=TRUE))/sum(Pg8_number_reported, na.rm=TRUE),
-            pg8_spending_per_month = (sum(Pg8_spending_per_month * Pg8_number_reported, na.rm=TRUE))/sum(Pg8_number_reported, na.rm=TRUE),
-            # Household Income Variables #
-            pg8_hh_income = (sum(Pg8_hh_income * Pg8_number_reported, na.rm=TRUE))/sum(Pg8_number_reported, na.rm=TRUE),
-            pg8_person_income = (sum(Pg8_person_income * Pg8_number_reported, na.rm=TRUE))/sum(Pg8_number_reported, na.rm=TRUE),
-            pg8_pct_lt5k = (sum(Pg8_pct_lt5k * Pg8_number_reported, na.rm=TRUE))/sum(Pg8_number_reported, na.rm=TRUE),
-            pg8_pct_5k_lt10k = (sum(Pg8_pct_5k_lt10k * Pg8_number_reported, na.rm=TRUE))/sum(Pg8_number_reported, na.rm=TRUE),
-            pg8_pct_10k_lt15k = (sum(Pg8_pct_10k_lt15k * Pg8_number_reported, na.rm=TRUE))/sum(Pg8_number_reported, na.rm=TRUE),
-            pg8_pct_15k_lt20k = (sum(Pg8_pct_15k_lt20k * Pg8_number_reported, na.rm=TRUE))/sum(Pg8_number_reported, na.rm=TRUE),
-            pg8_pct_ge20k = (sum(Pg8_pct_ge20k * Pg8_number_reported, na.rm=TRUE))/sum(Pg8_number_reported, na.rm=TRUE),
-            # Major Source of Income #
-            pg8_pct_wage_major = (sum(Pg8_pct_wage_major * Pg8_number_reported, na.rm=TRUE))/sum(Pg8_number_reported, na.rm=TRUE),
-            pg8_pct_welfare_major = (sum(Pg8_pct_welfare_major * Pg8_number_reported, na.rm=TRUE))/sum(Pg8_number_reported, na.rm=TRUE),
-            pg8_pct_other_major = (sum(Pg8_pct_other_major * Pg8_number_reported, na.rm=TRUE))/sum(Pg8_number_reported, na.rm=TRUE),
-            pg8_pct_median = (sum(Pg8_pct_median * Pg8_number_reported, na.rm=TRUE))/sum(Pg8_number_reported, na.rm=TRUE),
-            pg8_pct_lt50_median = (sum(Pg8_pct_lt50_median * Pg8_number_reported, na.rm=TRUE))/sum(Pg8_number_reported, na.rm=TRUE),
-            pg8_pct_lt30_median = (sum(Pg8_pct_lt30_median * Pg8_number_reported, na.rm=TRUE))/sum(Pg8_number_reported, na.rm=TRUE),
-            # Presence of Children #
-            pg8_pct_2adults = (sum(Pg8_pct_2adults * Pg8_number_reported, na.rm=TRUE))/sum(Pg8_number_reported, na.rm=TRUE),
-            pg8_pct_1adult = (sum(Pg8_pct_1adult * Pg8_number_reported, na.rm=TRUE))/sum(Pg8_number_reported, na.rm=TRUE),
-            pg8_pct_female_head = (sum(Pg8_pct_female_head * Pg8_number_reported, na.rm=TRUE))/sum(Pg8_number_reported, na.rm=TRUE),
-            pg8_pct_female_head_child = (sum(Pg8_pct_female_head_child * Pg8_number_reported, na.rm=TRUE))/sum(Pg8_number_reported, na.rm=TRUE),
-            # Head or Spouse or Co-Head Has a Disability #
-            pg8_pct_disabled_lt62 = (sum(Pg8_pct_disabled_lt62 * Pg8_number_reported, na.rm=TRUE))/sum(Pg8_number_reported, na.rm=TRUE),
-            pg8_pct_disabled_ge62 = (sum(Pg8_pct_disabled_ge62 * Pg8_number_reported, na.rm=TRUE))/sum(Pg8_number_reported, na.rm=TRUE),
-            pg8_pct_disabled_all = (sum(Pg8_pct_disabled_all * Pg8_number_reported, na.rm=TRUE))/sum(Pg8_number_reported, na.rm=TRUE),
-            # Age of Head/Spouse (Whoever is Older) #
-            pg8_pct_lt24_head = (sum(Pg8_pct_lt24_head * Pg8_number_reported, na.rm=TRUE))/sum(Pg8_number_reported, na.rm=TRUE),
-            pg8_pct_age25_50 = (sum(Pg8_pct_age25_50 * Pg8_number_reported, na.rm=TRUE))/sum(Pg8_number_reported, na.rm=TRUE),
-            pg8_pct_age51_61 = (sum(Pg8_pct_age51_61 * Pg8_number_reported, na.rm=TRUE))/sum(Pg8_number_reported, na.rm=TRUE),
-            pg8_pct_age62plus = (sum(Pg8_pct_age62plus * Pg8_number_reported, na.rm=TRUE))/sum(Pg8_number_reported, na.rm=TRUE),
-            pg8_pct_age85plus = (sum(Pg8_pct_age85plus * Pg8_number_reported, na.rm=TRUE))/sum(Pg8_number_reported, na.rm=TRUE),
-            # Race and Ethnicity #
-            pg8_pct_minority = (sum(Pg8_pct_minority * Pg8_number_reported, na.rm=TRUE))/sum(Pg8_number_reported, na.rm=TRUE),
-            pg8_pct_black_nonhsp = (sum(Pg8_pct_black_nonhsp * Pg8_number_reported, na.rm=TRUE))/sum(Pg8_number_reported, na.rm=TRUE),
-            pg8_pct_native_american_nonhsp = (sum(Pg8_pct_native_american_nonhsp * Pg8_number_reported, na.rm=TRUE))/sum(Pg8_number_reported, na.rm=TRUE),
-            pg8_pct_asian_pacific_nonhsp = (sum(Pg8_pct_asian_pacific_nonhsp * Pg8_number_reported, na.rm=TRUE))/sum(Pg8_number_reported, na.rm=TRUE),
-            pg8_pct_white_nothsp = (sum(Pg8_pct_white_nothsp * Pg8_number_reported, na.rm=TRUE))/sum(Pg8_number_reported, na.rm=TRUE),
-            pg8_pct_black_hsp = (sum(Pg8_pct_black_hsp * Pg8_number_reported, na.rm=TRUE))/sum(Pg8_number_reported, na.rm=TRUE),
-            pg8_pct_wht_hsp = (sum(Pg8_pct_wht_hsp * Pg8_number_reported, na.rm=TRUE))/sum(Pg8_number_reported, na.rm=TRUE),
-            pg8_pct_oth_hsp = (sum(Pg8_pct_oth_hsp * Pg8_number_reported, na.rm=TRUE))/sum(Pg8_number_reported, na.rm=TRUE),
-            pg8_pct_hispanic = (sum(Pg8_pct_hispanic * Pg8_number_reported, na.rm=TRUE))/sum(Pg8_number_reported, na.rm=TRUE),
-            pg8_pct_multi = (sum(Pg8_pct_multi * Pg8_number_reported, na.rm=TRUE))/sum(Pg8_number_reported, na.rm=TRUE),
-            # Social Conditions #
-            pg8_months_waiting = (sum(Pg8_months_waiting * Pg8_number_reported, na.rm=TRUE))/sum(Pg8_number_reported, na.rm=TRUE),
-            pg8_months_from_movein = (sum(Pg8_months_from_movein * Pg8_number_reported, na.rm=TRUE))/sum(Pg8_number_reported, na.rm=TRUE),
-            pg8_pct_utility_allow = (sum(Pg8_pct_utility_allow * Pg8_number_reported, na.rm=TRUE))/sum(Pg8_number_reported, na.rm=TRUE),
-            pg8_pct_lt5kave_util_allow = (sum(Pg8_ave_util_allow * Pg8_number_reported, na.rm=TRUE))/sum(Pg8_number_reported, na.rm=TRUE),        
-            ## Program 9 - 811/PRACs (120 PLACE entries with units, 24 reporting demographics) ##
-            pg9_units = sum(Pg9_total_units, na.rm=TRUE), 
-            pg9_pct_occupied = (sum(pg9_occupied_units, na.rm=TRUE))/sum(Pg9_total_units, na.rm=TRUE),
-            pg9_occupied_units = sum(pg9_occupied_units, na.rm=TRUE),
-            pg9_pct_reported = (sum(Pg9_number_reported, na.rm=TRUE)/sum(pg9_occupied_units, na.rm=TRUE)*100),
-            pg9_reported_units = sum(Pg9_number_reported, na.rm=TRUE), 
-            pg9_months_since_report = (sum(pg9_occupied_units * Pg9_months_since_report, na.rm=TRUE))/sum(Pg9_number_reported, na.rm=TRUE),
-            pg9_people_reporting = sum(Pg9_people_total, na.rm=TRUE),
-            pg9_people_per_unit = (sum(Pg9_people_total, na.rm=TRUE)/sum(pg9_occupied_units, na.rm=TRUE)),
-            pg9_months_since_report = (sum(Pg9_number_reported * Pg9_months_since_report, na.rm=TRUE))/sum(Pg9_number_reported, na.rm=TRUE),
-            pg9_people_reporting = sum(Pg9_people_total, na.rm=TRUE),
-            pg9_people_per_unit = (sum(Pg9_people_total, na.rm=TRUE)/sum(Pg9_number_reported, na.rm=TRUE)),
-            # Rent and Income #
-            pg9_rent_per_month = (sum(Pg9_rent_per_month * Pg9_number_reported, na.rm=TRUE))/sum(Pg9_number_reported, na.rm=TRUE),
-            pg9_spending_per_month = (sum(Pg9_spending_per_month * Pg9_number_reported, na.rm=TRUE))/sum(Pg9_number_reported, na.rm=TRUE),
-            # Household Income Variables #
-            pg9_hh_income = (sum(Pg9_hh_income * Pg9_number_reported, na.rm=TRUE))/sum(Pg9_number_reported, na.rm=TRUE),
-            pg9_person_income = (sum(Pg9_person_income * Pg9_number_reported, na.rm=TRUE))/sum(Pg9_number_reported, na.rm=TRUE),
-            pg9_pct_lt5k = (sum(Pg9_pct_lt5k * Pg9_number_reported, na.rm=TRUE))/sum(Pg9_number_reported, na.rm=TRUE),
-            pg9_pct_5k_lt10k = (sum(Pg9_pct_5k_lt10k * Pg9_number_reported, na.rm=TRUE))/sum(Pg9_number_reported, na.rm=TRUE),
-            pg9_pct_10k_lt15k = (sum(Pg9_pct_10k_lt15k * Pg9_number_reported, na.rm=TRUE))/sum(Pg9_number_reported, na.rm=TRUE),
-            pg9_pct_15k_lt20k = (sum(Pg9_pct_15k_lt20k * Pg9_number_reported, na.rm=TRUE))/sum(Pg9_number_reported, na.rm=TRUE),
-            pg9_pct_ge20k = (sum(Pg9_pct_ge20k * Pg9_number_reported, na.rm=TRUE))/sum(Pg9_number_reported, na.rm=TRUE),
-            # Major Source of Income #
-            pg9_pct_wage_major = (sum(Pg9_pct_wage_major * Pg9_number_reported, na.rm=TRUE))/sum(Pg9_number_reported, na.rm=TRUE),
-            pg9_pct_welfare_major = (sum(Pg9_pct_welfare_major * Pg9_number_reported, na.rm=TRUE))/sum(Pg9_number_reported, na.rm=TRUE),
-            pg9_pct_other_major = (sum(Pg9_pct_other_major * Pg9_number_reported, na.rm=TRUE))/sum(Pg9_number_reported, na.rm=TRUE),
-            pg9_pct_median = (sum(Pg9_pct_median * Pg9_number_reported, na.rm=TRUE))/sum(Pg9_number_reported, na.rm=TRUE),
-            pg9_pct_lt50_median = (sum(Pg9_pct_lt50_median * Pg9_number_reported, na.rm=TRUE))/sum(Pg9_number_reported, na.rm=TRUE),
-            pg9_pct_lt30_median = (sum(Pg9_pct_lt30_median * Pg9_number_reported, na.rm=TRUE))/sum(Pg9_number_reported, na.rm=TRUE),
-            # Presence of Children #
-            pg9_pct_2adults = (sum(Pg9_pct_2adults * Pg9_number_reported, na.rm=TRUE))/sum(Pg9_number_reported, na.rm=TRUE),
-            pg9_pct_1adult = (sum(Pg9_pct_1adult * Pg9_number_reported, na.rm=TRUE))/sum(Pg9_number_reported, na.rm=TRUE),
-            pg9_pct_female_head = (sum(Pg9_pct_female_head * Pg9_number_reported, na.rm=TRUE))/sum(Pg9_number_reported, na.rm=TRUE),
-            pg9_pct_female_head_child = (sum(Pg9_pct_female_head_child * Pg9_number_reported, na.rm=TRUE))/sum(Pg9_number_reported, na.rm=TRUE),
-            # Head or Spouse or Co-Head Has a Disability #
-            pg9_pct_disabled_lt62 = (sum(Pg9_pct_disabled_lt62 * Pg9_number_reported, na.rm=TRUE))/sum(Pg9_number_reported, na.rm=TRUE),
-            pg9_pct_disabled_ge62 = (sum(Pg9_pct_disabled_ge62 * Pg9_number_reported, na.rm=TRUE))/sum(Pg9_number_reported, na.rm=TRUE),
-            pg9_pct_disabled_all = (sum(Pg9_pct_disabled_all * Pg9_number_reported, na.rm=TRUE))/sum(Pg9_number_reported, na.rm=TRUE),
-            # Age of Head/Spouse (Whoever is Older) #
-            pg9_pct_lt24_head = (sum(Pg9_pct_lt24_head * Pg9_number_reported, na.rm=TRUE))/sum(Pg9_number_reported, na.rm=TRUE),
-            pg9_pct_age25_50 = (sum(Pg9_pct_age25_50 * Pg9_number_reported, na.rm=TRUE))/sum(Pg9_number_reported, na.rm=TRUE),
-            pg9_pct_age51_61 = (sum(Pg9_pct_age51_61 * Pg9_number_reported, na.rm=TRUE))/sum(Pg9_number_reported, na.rm=TRUE),
-            pg9_pct_age62plus = (sum(Pg9_pct_age62plus * Pg9_number_reported, na.rm=TRUE))/sum(Pg9_number_reported, na.rm=TRUE),
-            pg9_pct_age85plus = (sum(Pg9_pct_age85plus * Pg9_number_reported, na.rm=TRUE))/sum(Pg9_number_reported, na.rm=TRUE),
-            # Race and Ethnicity #
-            pg9_pct_minority = (sum(Pg9_pct_minority * Pg9_number_reported, na.rm=TRUE))/sum(Pg9_number_reported, na.rm=TRUE),
-            pg9_pct_black_nonhsp = (sum(Pg9_pct_black_nonhsp * Pg9_number_reported, na.rm=TRUE))/sum(Pg9_number_reported, na.rm=TRUE),
-            pg9_pct_native_american_nonhsp = (sum(Pg9_pct_native_american_nonhsp * Pg9_number_reported, na.rm=TRUE))/sum(Pg9_number_reported, na.rm=TRUE),
-            pg9_pct_asian_pacific_nonhsp = (sum(Pg9_pct_asian_pacific_nonhsp * Pg9_number_reported, na.rm=TRUE))/sum(Pg9_number_reported, na.rm=TRUE),
-            pg9_pct_white_nothsp = (sum(Pg9_pct_white_nothsp * Pg9_number_reported, na.rm=TRUE))/sum(Pg9_number_reported, na.rm=TRUE),
-            pg9_pct_black_hsp = (sum(Pg9_pct_black_hsp * Pg9_number_reported, na.rm=TRUE))/sum(Pg9_number_reported, na.rm=TRUE),
-            pg9_pct_wht_hsp = (sum(Pg9_pct_wht_hsp * Pg9_number_reported, na.rm=TRUE))/sum(Pg9_number_reported, na.rm=TRUE),
-            pg9_pct_oth_hsp = (sum(Pg9_pct_oth_hsp * Pg9_number_reported, na.rm=TRUE))/sum(Pg9_number_reported, na.rm=TRUE),
-            pg9_pct_hispanic = (sum(Pg9_pct_hispanic * Pg9_number_reported, na.rm=TRUE))/sum(Pg9_number_reported, na.rm=TRUE),
-            pg9_pct_multi = (sum(Pg9_pct_multi * Pg9_number_reported, na.rm=TRUE))/sum(Pg9_number_reported, na.rm=TRUE),
-            # Social Conditions #
-            pg9_months_waiting = (sum(Pg9_months_waiting * Pg9_number_reported, na.rm=TRUE))/sum(Pg9_number_reported, na.rm=TRUE),
-            pg9_months_from_movein = (sum(Pg9_months_from_movein * Pg9_number_reported, na.rm=TRUE))/sum(Pg9_number_reported, na.rm=TRUE),
-            pg9_pct_utility_allow = (sum(Pg9_pct_utility_allow * Pg9_number_reported, na.rm=TRUE))/sum(Pg9_number_reported, na.rm=TRUE),
-            pg9_pct_lt5kave_util_allow = (sum(Pg9_ave_util_allow * Pg9_number_reported, na.rm=TRUE))/sum(Pg9_number_reported, na.rm=TRUE)) %>% distinct(ctycsub, .keep_all = TRUE)
-
-place_PSH_trcts_Final <- place_PSH_trcts_Final %>% mutate_all(~ifelse(is.nan(.), NA, .)) # remove duplicate rows and NaN values
-#place_PSH_trcts_Final$name[is.na(place_PSH_trcts_Final$ctycsub)] <- "Missing" # 
-
-
-#renaming variable to match full place file
-place_PSH_trcts_Final<-place_PSH_trcts_Final %>% 
-  rename(
-    CENSUS2010 = ctycsub)
-
-place_PSH_trcts_Final$county<-place_PSH_trcts_Final$name
-
-place_PSH_trcts_Final$county <- str_extract_all(place_PSH_trcts_Final$county, "\\([^()]+\\)")
-place_PSH_trcts_Final$county<-gsub(", NJ)","",as.character(place_PSH_trcts_Final$county))
-place_PSH_trcts_Final$county <-sub('.', '', place_PSH_trcts_Final$county)
-
-place_PSH_trcts_Final$name2 <- strsplit(place_PSH_trcts_Final$name,'\\(')[[1]]
-
-place_PSH_trcts_Final <- separate(place_PSH_trcts_Final, col = name, into = c("name","county"), sep = "\\(")
-
-
-# replace all the infinite and NaN values with NA to avoid causing trouble with mapping?
-write.csv(place_PSH_trcts_Final, 'place_2021_PSH_trcts_Final.csv', na = "")
-
-
-
-```
-
-## Including Plots
-
-You can also embed plots, for example:
-
-```{r pressure, echo=FALSE}
-plot(pressure)
 ```
 
 Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
