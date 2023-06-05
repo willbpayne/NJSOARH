@@ -173,11 +173,18 @@ CDP_Cousub_intersects <- st_intersection(CDP_2010_Neg_Buffer, Cousubs_2010_Proj)
 CDP_Cousub_intersects$area <- as.numeric(st_area(CDP_Cousub_intersects)/1000000)
 CDP_Cousub_intersects$coverage <- CDP_Cousub_intersects$area/CDP_Cousub_intersects$sqkm
 
+## ADD CODE TO CHECK PROJECT LEVEL AND TRACT LEVEL PSH TO DISAMBIGUATE
+## ANYTHING AT THE PROJECT LEVEL WE CAN RIGOROUSLY ASSIGN TO A COUSUB
+## HCV UNITS WE NEED TO PROPORTIONALLY ASSIGN AND/OR BUILD UP FROM TRACTS
+
 CDPs_with_Munis_Duplicates_Total <- duplicated(pull(CDP_Cousub_intersects,PLACEFP10)) | duplicated(pull(CDP_Cousub_intersects,PLACEFP10), fromLast=TRUE) # get duplicates and originals
 CDPs_with_Munis_Duplicates_Total_List <- CDP_Cousub_intersects[CDPs_with_Munis_Duplicates_Total,c("NAMELSAD10", "NAMELSAD10.1","coverage")]
 
 CDP_Cousub_intersects <- st_drop_geometry(CDP_Cousub_intersects) # remove geometry
 
+```
+
+```{r setup, include=FALSE}
 ###################################
 ## 6 - Set Aside Handled Cousubs ##
 ###################################
@@ -278,6 +285,9 @@ place_PSH_Unmerged_Final$CENSUS2010[place_PSH_Unmerged_Final$name == "NJ REMAIND
 
 write.csv(place_PSH_Unmerged_Final,'place_PSH_Unmerged_Final.csv')
 
+```
+
+```{r setup, include=FALSE}
 ###################################################
 ## 9 - Merge CDP/Remainders and Demographic Data ##
 ###################################################
