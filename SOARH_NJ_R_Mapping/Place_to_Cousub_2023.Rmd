@@ -21,7 +21,7 @@ library(tidyverse)
 
 place_PSH_2022 <- read.csv(file = 'PLACE_2022.csv') # read in national place-level data
 
-state_name <- 'NJ New Jersey' # set this once and everything flows from here
+state_name <- 'AL Alabama' # set this once and everything flows from here
 state_abbreviation <- substring(state_name,1,2) # set this once and everything flows from here
 
 place_PSH <- place_PSH_2022 %>% filter(grepl(state_name, states)) # filter to single state
@@ -64,13 +64,24 @@ rm(names_id, names_to_order) # remove intermediate outputs
 code_99999 <- paste(state_code, '99999', sep='') # state geoid for unjoinable geographies
 code_XXXXX <- paste(state_code, 'XXXXX', sep='') # state geoid for units lacking location information
 
-place_PSH_CDPs <- place_PSH %>% filter(grepl('CDP', name)) # extract CDPs
+if (state_code == '09'){
+    place_PSH_CDPs <- place_PSH %>% filter(grepl('CDP|BOROUGH', name)) # extract CDPs
+    print("I'm in Connecticut!")
+  } else {
+    if (state_code == '36'){
+      place_PSH_CDPs <- place_PSH %>% filter(grepl('CDP|VILLAGE', name)) # extract CDPs
+      print("I'm in New York!")
+      } else {
+        place_PSH_CDPs <- place_PSH %>% filter(grepl('CDP', name)) # extract CDPs
+      }
+  }
+
 place_PSH_no_CDPs <- place_PSH %>% filter(!grepl('CDP', name)) # remove CDPs from the main dataset
-place_PSH_999999s <- filter(place_PSH_no_CDPs, code == code_9999) # extract rows without geoids, including remainders
-place_PSH_geoID <- filter(place_PSH_no_CDPs, code != code_9999) # extract non-CDPs with working geoids
+place_PSH_999999s <- filter(place_PSH_no_CDPs, code == code_99999) # extract rows without geoids, including remainders
+place_PSH_geoID <- filter(place_PSH_no_CDPs, code != code_99999) # extract non-CDPs with working geoids
 place_PSH_remainders <- place_PSH_999999s %>% filter(grepl('REMAINDER', name)) # extract remainders of cousubs
 place_PSH_othercousubs <- place_PSH_999999s %>% filter(!grepl('REMAINDER', name)) # extract other cousubs without geoids
-place_PSH_XXXXX <- filter(place_PSH_no_CDPs, code == code_XX) # extract missing values (unmappable)
+place_PSH_XXXXX <- filter(place_PSH_no_CDPs, code == code_XXXXX) # extract missing values (unmappable)
 
 #######################################
 ## 4 - Find Unjoinable Units by Type ##
@@ -113,6 +124,11 @@ unjoinable_units_by_type$total_unjoinable_Pct <- unjoinable_units_by_type$total_
 
 write.csv(unjoinable_units_by_type, paste0(state_abbreviation,"_unjoinable_units_by_type_2022.csv",sep=''), row.names=FALSE) # writes filename with state abbreviation, update later for different years
 
+```
+
+Next set of steps
+
+```{r setup, include=FALSE}
 ########################################
 ## 5 - Create CDP to Cousub Crosswalk ##
 ########################################
