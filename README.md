@@ -1,2 +1,2 @@
 # SOARH_NJ
-Mapping and data visualization from the State of Affordable Rental Housing in New Jersey research project
+Mapping and data visualization from the New Jersey State of Affordable Rental Housing research project at the Bloustein School of Planning and Public Policy at Rutgers University, New Brunswick.
