@@ -1,0 +1,68 @@
+,NAMELSAD,NAMELSAD.1,coverage,Notes,Resolution,Confidence
+12,Auburn CDP,Oldmans township,0.093849147,Not in 2023 PSH,,
+12.1,Auburn CDP,Pilesgrove township,0.906150853,Not in 2023 PSH,,
+24,Belle Mead CDP,Hillsborough township,49.1%,"HCV only, 27 units (not listed as ""Part"")",BUILD FROM TRACTS,Low - too even a split
+24.1,Belle Mead CDP,Montgomery township,50.9%,"HCV only, 27 units (not listed as ""Part"")",BUILD FROM TRACTS,Low - too even a split
+26,Blackwells Mills CDP,Hillsborough township,0.867897329,Not in 2023 PSH,,
+26.1,Blackwells Mills CDP,Franklin township,0.132102671,Not in 2023 PSH,,
+64,Cookstown CDP,New Hanover township,0.949579036,Not in 2023 PSH,,
+64.1,Cookstown CDP,North Hanover township,0.050420964,Not in 2023 PSH,,
+67,Crandon Lakes CDP,Hampton township,62.4%,"HCV only, 2 units listed as ""(PART)""",Hampton township,Medium
+67.1,Crandon Lakes CDP,Stillwater township,37.6%,"HCV only, 2 units listed as ""(PART)""",Hampton township,Medium
+108,Fort Dix CDP,Pemberton township,0.123796254,Not in 2023 PSH,,
+108.1,Fort Dix CDP,New Hanover township,0.86102261,Not in 2023 PSH,,
+108.2,Fort Dix CDP,Springfield township,0.015181137,Not in 2023 PSH,,
+125,Green Village CDP,Harding township,0.125212088,Not in 2023 PSH,,
+125.1,Green Village CDP,Chatham township,0.874787912,Not in 2023 PSH,,
+128,Grenloch CDP,Gloucester township,0.54003735,Not in 2023 PSH,,
+128.1,Grenloch CDP,Washington township,0.45996265,Not in 2023 PSH,,
+131,Hainesburg CDP,Knowlton township,74.9%,"HCV only, 1 unit",Knowlton township,Medium
+131.1,Hainesburg CDP,Blairstown township,25.1%,"HCV only, 1 unit",Knowlton township,Medium
+153,Kean University CDP,Union township,0.948080259,Not in 2023 PSH,,
+153.1,Kean University CDP,Hillside township,0.051919741,Not in 2023 PSH,,
+157,Kingston CDP,Franklin township,75.1%,"HCV only, 1 unit listed as ""(PART)""",South Brunswick township,"Medium - more housing on one side, only one unit"
+157.1,Kingston CDP,South Brunswick township,24.9%,"HCV only, 1 unit listed as ""(PART)""",South Brunswick township,"Medium - more housing on one side, only one unit"
+161,Lake Mohawk CDP,Sparta township,75.9%,"150 units of PBS8, 2 units of HCV listed as ""(PART)""",Sparta township,High
+161.1,Lake Mohawk CDP,Byram township,24.1%,"150 units of PBS8, 2 units of HCV listed as ""(PART)""",Sparta township,High
+186,Lower Berkshire Valley CDP,Roxbury township,0.974625032,Not in 2023 PSH,,
+186.1,Lower Berkshire Valley CDP,Jefferson township,0.025374968,Not in 2023 PSH,,
+188,McGuire AFB CDP,New Hanover township,90.7%,"PBS8 only! 29 units, lines up most closely with 28 units in North Hanover (only private land in CDP)",North Hanover township,High
+188.1,McGuire AFB CDP,North Hanover township,9.3%,"PBS8 only! 29 units, lines up most closely with 28 units in North Hanover (only private land in CDP)",North Hanover township,High
+207,Milmay CDP,Buena Vista township,0.787464608,Not in 2023 PSH,,
+207.1,Milmay CDP,Maurice River township,0.212535392,Not in 2023 PSH,,
+212,Montclair State University CDP,Montclair township,0.059586549,Not in 2023 PSH,,
+212.1,Montclair State University CDP,Little Falls township,0.940413451,Not in 2023 PSH,,
+219,Mount Tabor CDP,Parsippany-Troy Hills township,0.997483418,Not in 2023 PSH,,
+219.1,Mount Tabor CDP,Denville township,0.002516582,Not in 2023 PSH,,
+225,Neshanic Station CDP,Branchburg township,0.956606677,Not in 2023 PSH,,
+225.1,Neshanic Station CDP,Readington township,0.043393323,Not in 2023 PSH,,
+237,Oak Ridge CDP,West Milford township,0.241210096,Not in 2023 PSH,,
+237.1,Oak Ridge CDP,Jefferson township,0.758789904,Not in 2023 PSH,,
+239,Ocean Acres CDP,Barnegat township,36.0%,"HCV only, 28 units listed as ""(PART)""",BUILD FROM TRACTS,Low - too even a split
+239.1,Ocean Acres CDP,Stafford township,64.0%,"HCV only, 28 units listed as ""(PART)""",BUILD FROM TRACTS,Low - too even a split
+262,Pluckemin CDP,Bridgewater township,0.224623227,Not in 2023 PSH,,
+262.1,Pluckemin CDP,Bedminster township,0.775376773,Not in 2023 PSH,,
+265,Port Colden CDP,Mansfield township,1.4%,"6 units of HCV, no rental housing units in Mansfield portion",Washington township,High
+265.1,Port Colden CDP,Washington township,98.6%,"6 units of HCV, no rental housing units in Mansfield portion",Washington township,High
+272,Pottersville CDP,Tewksbury township,0.700497226,Not in 2023 PSH,,
+272.1,Pottersville CDP,Bedminster township,0.299502774,Not in 2023 PSH,,
+285,Richwood CDP,Harrison township,90.6%,"18 units of HCV listed as ""(PART)"", no rental housing units in Mantua portion",Harrison township,Medium - numbers don't align with tracts
+285.1,Richwood CDP,Mantua township,9.4%,"18 units of HCV listed as ""(PART)"", no rental housing units in Mantua portion",Harrison township,Medium - numbers don't align with tracts
+286,Ringoes CDP,West Amwell township,0.00756194,Not in 2023 PSH,,
+286.1,Ringoes CDP,East Amwell township,0.99243806,Not in 2023 PSH,,
+287,Rio Grande CDP,Lower township,8.5%,"20 units of HCV, very few rental housing units in Lower township portion",Middle township,High
+287.1,Rio Grande CDP,Middle township,91.5%,"20 units of HCV, very few rental housing units in Lower township portion",Middle township,High
+288,Roadstown CDP,Stow Creek township,0.49077908,Not in 2023 PSH,,
+288.1,Roadstown CDP,Hopewell township,0.50922092,Not in 2023 PSH,,
+296,Rutgers University-Livingston Campus CDP,Piscataway township,0.813643366,Not in 2023 PSH,,
+296.1,Rutgers University-Livingston Campus CDP,Edison township,0.186356634,Not in 2023 PSH,,
+303,Sheppards Mill CDP,Greenwich township,0.706594571,Not in 2023 PSH,,
+303.1,Sheppards Mill CDP,Hopewell township,0.293405429,Not in 2023 PSH,,
+305,Sicklerville CDP,Gloucester township,0.502311639,Not in 2023 PSH,,
+305.1,Sicklerville CDP,Winslow township,0.497688361,Not in 2023 PSH,,
+307,Silver Lake CDP,Belleville township,75.6%,"46 units of HCV listed as ""(PART)"", 1 unit listed without (and there are three Silver Lake CDPs)",BUILD FROM TRACTS,Low - too even a split
+307.1,Silver Lake CDP,Bloomfield township,24.4%,"46 units of HCV listed as ""(PART)"", 1 unit listed without (and there are three Silver Lake CDPs)",BUILD FROM TRACTS,Low - too even a split
+330,The Hills CDP,Bernards township,0.591232896,Not in 2023 PSH,,
+330.1,The Hills CDP,Bedminster township,0.408767104,Not in 2023 PSH,,
+342,Upper Greenwood Lake CDP,West Milford township,0.917977557,Not in 2023 PSH,,
+342.1,Upper Greenwood Lake CDP,Vernon township,0.082022443,Not in 2023 PSH,,
