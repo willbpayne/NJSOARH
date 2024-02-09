@@ -397,25 +397,28 @@ place_PSH_Unmerged_Manual <- subset(place_PSH_Cousubs_So_Far, CENSUS2010 %in% ma
 ##########################################
 
 Census_Tracts_2020 <- st_read(paste("Census_Geographies/2020_tracts/tl_2020_", state_code,"_tract20.shp", sep = "")) # bring in Census Place level geometries
+Census_Tracts_2020_Clean <- subset(Census_Tracts_2020, select = -c(STATEFP20,NAMELSAD20,MTFCC20,FUNCSTAT20,ALAND20,AWATER20,INTPTLAT20,INTPTLON20,COUNTYFP20,TRACTCE20,NAME20)) # remove extraneous fields 
+Cousubs_2020_Proj_Clean <- subset(Cousubs_2020_Proj, select = -c(CLASSFP,COUNTYFP,COUSUBFP,COUSUBNS)) # remove extraneous fields here too (MOVE??)
 
-Census_Tracts_2020_Clean <- subset(Census_Tracts_2020, select = -c(STATEFP20,NAMELSAD20,MTFCC20,FUNCSTAT20,ALAND20,AWATER20,INTPTLAT20,INTPTLON20,COUNTYFP20,TRACTCE20,NAME20)) # remove extraneous fields
+Tract_Cousubs_2020 <- subset(Cousubs_2020_Proj_Clean, GEOID %in% Tract_Aggregation_List) # subset to county subdivisions that we may need to build from tracts
 
-Cousubs_2020_Proj_Clean <- subset(Cousubs_2020_Proj, select = -c(CLASSFP,COUNTYFP,COUSUBFP,COUSUBNS))
+# REPROJECT AND NEGATIVE BUFFER ON TRACTS
+Census_Tracts_2020_Proj <- st_transform(Census_Tracts_2020_Clean, paste0("+proj=utm +zone=",utm_zone_simple," +ellps=GRS80 +datum=NAD83", sep="")) #reproject to correct UTM zone
+Tracts_2020_Neg_Buffer <- Census_Tracts_2020_Proj %>% st_buffer(-150)  # create the negative 150 foot buffer
+Tracts_2020_Neg_Buffer$sqkm <- as.numeric(st_area(Tracts_2020_Neg_Buffer)/1000000)
 
-Tract_Cousubs_2020 <- subset(Cousubs_2020_Proj_Clean, GEOID %in% Tract_Aggregation_List)
+Tract_Cousub_Correspondence <- st_join(Tracts_2020_Neg_Buffer, Cousubs_2020_Proj_Clean, suffix = c("_CDP", "_Cousub"))
 
-########
+Tract_Cousub_Intersects <- st_intersection(Tracts_2020_Neg_Buffer, Tract_Cousubs_2020) # try this
+Tract_Cousub_Intersects$area <- as.numeric(st_area(Tract_Cousub_Intersects)/1000000)
+Tract_Cousub_Intersects$coverage <- Tract_Cousub_Intersects$area/Tract_Cousub_Intersects$sqkm
+
+Tract_Cousub_Intersects_Imperfectly <- subset(Tract_Cousub_Intersects, coverage < 0.99999999)
+
+######## DO WE STILL NEED THESE?
 
 place_PSH_Unmerged_Final$CENSUS2010[place_PSH_Unmerged_Final$name == "NJ CITY OF ORANGE TOWNSHIP"] <- 3401313045 # manually set City of Orange Township (Essex County)
 place_PSH_Unmerged_Final$CENSUS2010[place_PSH_Unmerged_Final$name == "NJ PRINCETON TOWNSHIP"] <- 3402160900 # manually set Princeton Township (Mercer County) to Princeton Borough (Mercer County) since they've merged
-
-place_PSH_Unmerged_Final$CENSUS2010[place_PSH_Unmerged_Final$name == "NJ GREENWICH TOWNSHIP"] <- 3401128170 # manually set Greenwich Township (Cumberland County)
-place_PSH_Unmerged_Final$CENSUS2010[place_PSH_Unmerged_Final$name == "NJ SPRINGFIELD TOWNSHIP"] <- 3403970020 # manually set Springfield Township (Union County)
-place_PSH_Unmerged_Final$CENSUS2010[place_PSH_Unmerged_Final$name == "NJ WASHINGTON TOWNSHIP"] <- 3400377135 # manually set Washington Township (Bergen County) 
-
-place_PSH_Unmerged_Final$CENSUS2010[place_PSH_Unmerged_Final$name == "NJ REMAINDER OF FAIRFIELD TOWNSHIP"] <- 3401122350 # manually set Remainder of Fairfield Township (Cumberland County)
-place_PSH_Unmerged_Final$CENSUS2010[place_PSH_Unmerged_Final$name == "NJ REMAINDER OF GREENWICH TOWNSHIP"] <- 3401528185 # manually set Remainder of Greenwich Township (Gloucester County)
-place_PSH_Unmerged_Final$CENSUS2010[place_PSH_Unmerged_Final$name == "NJ REMAINDER OF MANSFIELD TOWNSHIP"] <- 3404143320 # manually set Remainder of Mansfield Township (Warren County)
 
 write.csv(place_PSH_Unmerged_Final,'place_PSH_Unmerged_Final.csv')
 
