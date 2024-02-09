@@ -184,9 +184,13 @@ CDP_Cousub_intersects$coverage <- CDP_Cousub_intersects$area/CDP_Cousub_intersec
 ## HCV UNITS WE NEED TO PROPORTIONALLY ASSIGN AND/OR BUILD UP FROM TRACTS
 
 CDPs_with_Munis_Duplicates_Total <- duplicated(pull(CDP_Cousub_intersects,PLACEFP)) | duplicated(pull(CDP_Cousub_intersects,PLACEFP), fromLast=TRUE) # get duplicates and originals
-CDPs_with_Munis_Duplicates_Total_List <- CDP_Cousub_intersects[CDPs_with_Munis_Duplicates_Total,c("NAMELSAD", "NAMELSAD.1","coverage")]
+CDPs_with_Munis_Duplicates_Total_List <- CDP_Cousub_intersects[CDPs_with_Munis_Duplicates_Total,c("NAMELSAD", "NAMELSAD.1","coverage","GEOID")]
 
-CDPs_with_Munis_Duplicates_Total_Export <- st_drop_geometry(CDPs_with_Munis_Duplicates_Total_List) # remove geometry
+CDPs_with_Munis_Duplicates_Total_No_Geo <- st_drop_geometry(CDPs_with_Munis_Duplicates_Total_List) # remove geometry
+
+# JOIN THIS BY CODE TO PSH
+
+CDPs_with_Munis_Duplicates_Total_Export <- left_join(CDPs_with_Munis_Duplicates_Total_No_Geo, place_PSH_CDPs, by = c("GEOID" = "code")) # put them together, but this is getting too much
 
 write.csv(CDPs_with_Munis_Duplicates_Total_Export, 'place_2023_CDP_duplicates.csv', na = "")
 
@@ -209,21 +213,29 @@ rm(place_PSH_no_CDPs, place_PSH_geoID, place_PSH_othercousubs, place_PSH_999999s
 ## 7 - Aggregate CDPs and Remainders ##
 #######################################
 
-CDP_Correspondence_Table_clean <- filter(CDP_Correspondence_Table, !(GEOID_Cousub == 3403709160 & NAMELSAD_CDP == 'Lake Mohawk CDP')) # remove one of the ambiguous CDPs since all housing units are in Sparta Township
-CDP_Correspondence_Table_clean <- filter(CDP_Correspondence_Table_clean, !(GEOID_Cousub == 3400553070 & NAMELSAD_CDP == "McGuire AFB CDP")) # remove one of the ambiguous CDPs since all housing units are in North Hanover Township
+CDP_Correspondence_Table_clean <- filter(CDP_Correspondence_Table, !(GEOID_Cousub == 3403709160 & NAMELSAD_CDP == 'Lake Mohawk CDP')) # remove one of the ambiguous CDPs since all housing units are in Sparta Township, not Byram Township
+CDP_Correspondence_Table_clean <- filter(CDP_Correspondence_Table_clean, !(GEOID_Cousub == 3400553070 & NAMELSAD_CDP == "McGuire AFB CDP")) # remove one of the ambiguous CDPs since all housing units are in North Hanover Township, not New Hanover Township
+CDP_Correspondence_Table_clean <- filter(CDP_Correspondence_Table_clean, !(GEOID_Cousub == 3403524900 & NAMELSAD_CDP == "Kingston CDP")) # remove one of the ambiguous CDPs since HCV units are more likely to be in South Brunswick Township, not Franklin Township
+CDP_Correspondence_Table_clean <- filter(CDP_Correspondence_Table_clean, !(GEOID_Cousub == 3404106160 & NAMELSAD_CDP == "Hainesburg CDP")) # remove one of the ambiguous CDPs since HCV units are more likely to be in Knowlton Township, not Blairstown Township
+CDP_Correspondence_Table_clean <- filter(CDP_Correspondence_Table_clean, !(GEOID_Cousub == 3403770890 & NAMELSAD_CDP == "Crandon Lakes CDP")) # remove one of the ambiguous CDPs since HCV units are more likely to be in Hampton Township, not Stillwater Township
+CDP_Correspondence_Table_clean <- filter(CDP_Correspondence_Table_clean, !(GEOID_Cousub == 3400941610 & NAMELSAD_CDP == "Rio Grande CDP")) # remove one of the ambiguous CDPs since HCV units are more likely to be in Middle Township, not Lower Township
+CDP_Correspondence_Table_clean <- filter(CDP_Correspondence_Table_clean, !(GEOID_Cousub == 3401543440 & NAMELSAD_CDP == "Richwood CDP")) # remove one of the ambiguous CDPs since HCV units are more likely to be in Harrison Township, not Mantua Township
+CDP_Correspondence_Table_clean <- filter(CDP_Correspondence_Table_clean, !(GEOID_Cousub == 3404143320 & NAMELSAD_CDP == "Port Colden CDP")) # remove one of the ambiguous CDPs since HCV units are more likely to be in Washington Township, not Mansfield Township
 
 CDP_Correspondence_Table_no_geo <- st_drop_geometry(CDP_Correspondence_Table_clean) # remove geometry
 
 place_PSH_CDPs_with_Munis <- left_join(place_PSH_CDPs, CDP_Correspondence_Table_no_geo, by = c("code" = "GEOID_CDP")) # put them together
 
-write.csv(place_PSH_CDPs_with_Munis, 'place_PSH_CDPs_with_Munis_2023_no_geo.csv', na = "")
+write.csv(place_PSH_CDPs_with_Munis, 'place_PSH_CDPs_with_Munis_2023_no_geo.csv', na = "") # write a file to check in order to make the table
 
 CDPs_with_Munis_Duplicates <- duplicated(pull(place_PSH_CDPs_with_Munis,name)) | duplicated(pull(place_PSH_CDPs_with_Munis,name), fromLast=TRUE)
 
-CDPs_with_Ambiguous_or_Missing_Munis <- place_PSH_CDPs_with_Munis[CDPs_with_Munis_Duplicates, c('name','code',"MUNI_MUN_LABEL")]
+CDPs_with_Ambiguous_or_Missing_Munis <- place_PSH_CDPs_with_Munis[CDPs_with_Munis_Duplicates, c('name','code',"NAMELSAD_Cousub")]
+CDPs_with_Ambiguous_or_Missing_Munis <- CDPs_with_Ambiguous_or_Missing_Munis %>% filter(!grepl('REMAINDER', name)) # remove fake remainders from here
+
 #subset(place_PSH_CDPs_with_Munis,duplicated(name))
 
-place_PSH_CDPs_Manual <- filter(place_PSH_CDPs_with_Munis, is.na(MUNI_MUN_LABEL))
+place_PSH_CDPs_Manual <- filter(place_PSH_CDPs_with_Munis, is.na(NAMELSAD_Cousub))
 
 place_PSH_CDPs_Manual <- filter(place_PSH_CDPs_with_Munis, is.na(MUNI_MUN_LABEL))
 place_PSH_CDPs_with_Munis <- filter(place_PSH_CDPs_with_Munis, !is.na(MUNI_MUN_LABEL))
@@ -231,17 +243,38 @@ place_PSH_CDPs_with_Munis$CENSUS2010 <- place_PSH_CDPs_with_Munis$MUNI_CENSUS201
 
 rm(place_PSH_CDPs, place_PSH_CDPs_Manual) # get rid of earlier issues
 
-# come up with a list of cousubs that need to be manually aggregated for 2023 (NOT UPDATED)
-manual_tract_aggregation_list <- c(3402970320, # Stafford (Ocean)
-                                   3402903050, # Barnegat (Ocean)
-                                   3401304695, # Belleville (Essex)
-                                   3401306260, # Bloomfield (Essex)
-                                   3400129280,3402129310,3401133120,3402133180,3401139450,3402139510,3401547250,3402347280,3402554270,3402954300,3401577180,3402777240,3404177300,3401974420,3400569990,3403970020,3401924870,3401524840,3403974480,3400577150,3400377135)
-
-place_PSH_CDPs_with_Munis <- left_join(place_PSH_CDPs, CDP_to_Cousub_Mapping, by = "code") # put them together
-place_PSH_CDPs_Manual <- filter(place_PSH_CDPs_with_Munis, is.na(MUNI_MUN_LABEL))
-place_PSH_CDPs_with_Munis <- filter(place_PSH_CDPs_with_Munis, !is.na(MUNI_MUN_LABEL))
-place_PSH_CDPs_with_Munis$CENSUS2010 <- place_PSH_CDPs_with_Munis$MUNI_CENSUS2010 # need a common join field later
+# come up with a list of cousubs that need to be manually aggregated for 2023
+manual_tract_aggregation_list <- c(3402970320, # Stafford (Ocean) - because of Ocean Acres CDP
+                                   3402903050, # Barnegat (Ocean) - because of Ocean Acres CDP
+                                   3401304695, # Belleville (Essex) - because of Silver Lake CDP
+                                   3401306260, # Bloomfield (Essex) - because of Silver Lake CDP
+                                   3403531890, # Hillsborough (Somerset) - because of Belle Mead CDP
+                                   3403547580, # Montgomery (Somerset) - because of Belle Mead CDP
+                                   3400726760, # Gloucester (Camden) - because of Sicklerville CDP
+                                   3400781740, # Winslow (Camden) - because of Grenloch and Sicklerville CDPs
+                                   3401577180, # Washington (Gloucester) - because of Grenloch CDP
+                                   # END CDPs, START AMBIGUOUS REMAINDERS AND TOWNSHIPS
+                                   3400129280, # Hamilton (Atlantic) 
+                                   3402129310, # Hamilton (Mercer)
+                                   3401133120, # Hopewell (Cumberland)
+                                   3402133180, # Hopewell (Mercer)
+                                   #3401139450, LAWRENCE
+                                   #3402139510, LAWRENCE
+                                   #3401547250, MONROE
+                                   #3402347280, MONROE
+                                   #3402554270, OCEAN
+                                   #3402954300, OCEAN
+                                   3401577180, # Washington Township (Gloucester)
+                                   3402777240, # Washington Township (Morris)
+                                   3404177300, # Washington Township (Warren)
+                                   3400569990, # Springfield Township (Burlington)
+                                   3403970020, # Springfield Township (Union)
+                                   3401924870, # Franklin Township (Hunterdon)
+                                   3401524840, # Franklin Township (Gloucester)
+                                   3403974480, # Union Township (Union)
+                                   3401974420, # Union Township (Hunterdon)
+                                   3400577150, # Washington Township (Burlington)
+                                   3400377135) # Washington Township (Bergen)
 
 rm(place_PSH_CDPs, place_PSH_CDPs_Manual) # get rid of earlier issues
 
@@ -263,6 +296,59 @@ place_PSH_Cousubs_Already_Valid$PSH_Join <- paste0(place_PSH_Cousubs_Already_Val
 place_PSH_Cousubs_Already_Matched <- left_join(place_PSH_Cousubs_Already_Valid, NJ_Munis_for_Matching, by = "PSH_Join") # put them together
 
 place_PSH_Cousubs_Already_99999s_Matched <- left_join(place_PSH_Cousubs_Already_99999s, NJ_Munis_for_Matching, by = c("Join_Name" = "MUN_LABEL")) # put them together
+
+# FAIRFIELD
+# Fairfield Township (Essex) is 3401322385
+# Remainder of Fairfield Township (Cumberland) is 3401122350
+
+# FRANKLIN
+# 3403524900 (Somerset) is entirely made of CDPs in both years, so doesn't need handling
+# 3401924870 (Hunterdon) has no CDPs in both years, so could be Franklin Township
+# 3401524840 (Gloucester) has CDPs but didn't in 2010, so could be Franklin Township
+# 3404124960 (Warren) has CDPs in both years, so is Remainder of Franklin Township
+
+#3425050 FRANKLIN TOWNSHIP in Gloucester is actually a new CDP, AAAAAAAH - but only matters here and is solved by tract aggregation
+#3442840 FRANKLIN TOWNSHIP in Gloucester is actually a new CDP, AAAAAAAH - but only matters here and is solved by tract aggregation
+
+# Wellllll, there could be other unsuccessful joins by muni code, need to check that since things that say township should be easy joins but won't be if they're actually new CDPs; are we joining these on code or on name alone?
+
+# GREENWICH
+# 3401128170 (Cumberland) has no CDPs in 2010, yes in 2020, is Township
+# 3401528185 (Gloucester) has CDPs in both years, could be Remainder (CHECK TRACTS?)
+# 3404128260 (Warren) has CDPs in both years, could be Remainder
+
+# HAMILTON
+# 3400129280 (Atlantic), has CDPs both years, could be Remainder 
+# 3402129310 (Mercer), has CDPs both years, could be Remainder
+
+# HOPEWELL
+# 3401133120 (Cumberland) only has CDPs in 2020, could be Township
+# 3402133180 (Mercer) only has CDPs in 2020, could be Township
+
+# LAWRENCE
+# 3401139450, LAWRENCE
+# 3402139510, LAWRENCE
+
+# MONROE
+# 3401547250, MONROE
+# 3402347280, MONROE
+
+# OCEAN
+# 3402554270, OCEAN
+# 3402954300, OCEAN
+
+# SPRINGFIELD
+# Remainder of Springfield Township is 3403970020 (Union) or 3400569990 (Burlington) TRACTS SO AMBIGUOUS ONLY ONE UNIT THOUGH
+
+# UNION
+# Union Township could be 3401974420 (Hunterdon, no CDPs either year) or 3403974480 (Union, no CDPs in 2010, yes in 2020) DOESNT WORK BECAUSE OF WEIRD 2010-2020 CDP CHANGES
+
+# WASHINGTON (all need to be built from tracts)
+# 3404177300 (Warren) has CDPs both years, could be Remainder 
+# 3402777240 (Morris) has CDPs both years, could be Remainder
+# 3401577180 (Gloucester) has CDPs both years, could be Remainder
+# 3400577150 (Burlington) has no CDPs both years, could be Township
+# 3400377135 (Bergen) has no CDPs both years, could be Township
 
 place_PSH_Cousubs_Already$PSH_Join <- paste0(place_PSH_Cousubs_Already$place," ",place_PSH_Cousubs_Already$Join_Name) # 843 rows handled now, plus 416 for CDPs that aren't manual and 6 that are missing
 
@@ -290,10 +376,8 @@ place_PSH_Unmerged_Manual <- subset(place_PSH_Cousubs_So_Far, CENSUS2010 %in% ma
 place_PSH_Unmerged_Final$CENSUS2010[place_PSH_Unmerged_Final$name == "NJ CITY OF ORANGE TOWNSHIP"] <- 3401313045 # manually set City of Orange Township (Essex County)
 place_PSH_Unmerged_Final$CENSUS2010[place_PSH_Unmerged_Final$name == "NJ PRINCETON TOWNSHIP"] <- 3402160900 # manually set Princeton Township (Mercer County) to Princeton Borough (Mercer County) since they've merged
 
-place_PSH_Unmerged_Final$CENSUS2010[place_PSH_Unmerged_Final$name == "NJ FRANKLIN TOWNSHIP"] <- 3401524840 # manually set Franklin Township (Gloucester County)
 place_PSH_Unmerged_Final$CENSUS2010[place_PSH_Unmerged_Final$name == "NJ GREENWICH TOWNSHIP"] <- 3401128170 # manually set Greenwich Township (Cumberland County)
 place_PSH_Unmerged_Final$CENSUS2010[place_PSH_Unmerged_Final$name == "NJ SPRINGFIELD TOWNSHIP"] <- 3403970020 # manually set Springfield Township (Union County)
-place_PSH_Unmerged_Final$CENSUS2010[place_PSH_Unmerged_Final$name == "NJ UNION TOWNSHIP"] <- 3403974480 # manually set Union Township (Union County) 
 place_PSH_Unmerged_Final$CENSUS2010[place_PSH_Unmerged_Final$name == "NJ WASHINGTON TOWNSHIP"] <- 3400377135 # manually set Washington Township (Bergen County) 
 
 place_PSH_Unmerged_Final$CENSUS2010[place_PSH_Unmerged_Final$name == "NJ REMAINDER OF FAIRFIELD TOWNSHIP"] <- 3401122350 # manually set Remainder of Fairfield Township (Cumberland County)
