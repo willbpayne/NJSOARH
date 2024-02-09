@@ -243,7 +243,7 @@ place_PSH_CDPs_with_Munis$CENSUS2010 <- place_PSH_CDPs_with_Munis$MUNI_CENSUS201
 
 rm(place_PSH_CDPs, place_PSH_CDPs_Manual) # get rid of earlier issues
 
-# come up with a list of cousubs that need to be manually aggregated for 2023
+# come up with a list of cousubs that need to be manually aggregated for NJ in 2023
 manual_tract_aggregation_list <- c(3402970320, # Stafford (Ocean) - because of Ocean Acres CDP
                                    3402903050, # Barnegat (Ocean) - because of Ocean Acres CDP
                                    3401304695, # Belleville (Essex) - because of Silver Lake CDP
@@ -253,15 +253,17 @@ manual_tract_aggregation_list <- c(3402970320, # Stafford (Ocean) - because of O
                                    3400726760, # Gloucester (Camden) - because of Sicklerville CDP
                                    3400781740, # Winslow (Camden) - because of Grenloch and Sicklerville CDPs
                                    3401577180, # Washington (Gloucester) - because of Grenloch CDP
-                                   # END CDPs, START AMBIGUOUS REMAINDERS AND TOWNSHIPS
+                                   # END AMBIGUOUS CDPs, START AMBIGUOUS REMAINDERS AND TOWNSHIPS
                                    3400129280, # Hamilton (Atlantic) 
                                    3402129310, # Hamilton (Mercer)
                                    3401133120, # Hopewell (Cumberland)
                                    3402133180, # Hopewell (Mercer)
-                                   #3401139450, LAWRENCE
-                                   #3402139510, LAWRENCE
+                                   3401139450, # Lawrence (Cumberland)
+                                   3402139510, # Lawrence (Mercer)
                                    #3401547250, MONROE
                                    #3402347280, MONROE
+                                   # MANSFIELD
+                                   # MANSFIELD
                                    #3402554270, OCEAN
                                    #3402954300, OCEAN
                                    3401577180, # Washington Township (Gloucester)
@@ -326,8 +328,8 @@ place_PSH_Cousubs_Already_99999s_Matched <- left_join(place_PSH_Cousubs_Already_
 # 3402133180 (Mercer) only has CDPs in 2020, could be Township
 
 # LAWRENCE
-# 3401139450, LAWRENCE
-# 3402139510, LAWRENCE
+# 3401139450 (Cumberland) has CDPs both years, could be Remainder
+# 3402139510 (Mercer) has CDPs both years, could be Remainder
 
 # MONROE
 # 3401547250, MONROE
