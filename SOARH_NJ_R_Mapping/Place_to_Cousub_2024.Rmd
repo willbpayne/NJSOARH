@@ -184,7 +184,18 @@ CDP_Cousub_intersects$coverage <- CDP_Cousub_intersects$area/CDP_Cousub_intersec
 ## HCV UNITS WE NEED TO PROPORTIONALLY ASSIGN AND/OR BUILD UP FROM TRACTS
 
 CDPs_with_Munis_Duplicates_Total <- duplicated(pull(CDP_Cousub_intersects,PLACEFP)) | duplicated(pull(CDP_Cousub_intersects,PLACEFP), fromLast=TRUE) # get duplicates and originals
-CDPs_with_Munis_Duplicates_Total_List <- CDP_Cousub_intersects[CDPs_with_Munis_Duplicates_Total,c("NAMELSAD", "NAMELSAD.1","coverage","GEOID")]
+
+CDPs_with_Munis_Duplicates_Total
+colnames(CDPs_with_Munis_Duplicates_Total)
+
+CDPs_with_Munis_Duplicates_Total_List <- CDP_Cousub_intersects[CDPs_with_Munis_Duplicates_Total,c("NAMELSAD", "NAMELSAD.1","coverage","GEOID","GEOID.1")]
+
+Ambiguous_CDP_Muni_List <- CDPs_with_Munis_Duplicates_Total_List[['GEOID.1']]
+Ambiguous_CDP_Muni_List_Deduplicated <- unique(Ambiguous_CDP_Muni_List)
+
+Ambiguous_Muni_Name_List_Character <- as.character(Ambiguous_Muni_Name_List)
+
+Tract_Aggregation_List <- unique(c(Ambiguous_CDP_Muni_List_Deduplicated, Ambiguous_Muni_Name_List_Character))
 
 CDPs_with_Munis_Duplicates_Total_No_Geo <- st_drop_geometry(CDPs_with_Munis_Duplicates_Total_List) # remove geometry
 
@@ -253,6 +264,7 @@ manual_tract_aggregation_list <- c(3402970320, # Stafford (Ocean) - because of O
                                    3400726760, # Gloucester (Camden) - because of Sicklerville CDP
                                    3400781740, # Winslow (Camden) - because of Grenloch and Sicklerville CDPs
                                    3401577180, # Washington (Gloucester) - because of Grenloch CDP
+                                   
                                    # END AMBIGUOUS CDPs, START AMBIGUOUS REMAINDERS AND TOWNSHIPS
                                    3400129280, # Hamilton (Atlantic) 
                                    3402129310, # Hamilton (Mercer)
@@ -282,6 +294,11 @@ rm(place_PSH_CDPs, place_PSH_CDPs_Manual) # get rid of earlier issues
 
 # We create a field called PSH_Join to disambiguate cousubs of the same name since we have place codes and names
 NJ_Munis_for_Matching <- read.csv('NJ_Munis_for_Matching.csv') # bring in our cousub list to match with
+
+NJ_Munis_for_Matching_Duplicates <- duplicated(pull(NJ_Munis_for_Matching,MUN_LABEL)) | duplicated(pull(NJ_Munis_for_Matching,MUN_LABEL), fromLast=TRUE)
+Ambiguous_Muni_Names <- NJ_Munis_for_Matching[NJ_Munis_for_Matching_Duplicates, c('COUNTY','MUN_LABEL',"CENSUS2010")]
+Ambiguous_Muni_Name_List <- Ambiguous_Muni_Names[['CENSUS2010']]
+  
 NJ_Munis_for_Matching$place <- substr(NJ_Munis_for_Matching$GISJOIN,7,11) # get place code from GISJOIN
 NJ_Munis_for_Matching$PSH_Join <- paste0(NJ_Munis_for_Matching$place," ",NJ_Munis_for_Matching$MUN_LABEL) # paste it to label
 
@@ -374,6 +391,20 @@ place_PSH_Unmerged_Manual <- subset(place_PSH_Cousubs_So_Far, CENSUS2010 %in% ma
 ####################################
 ## 8 - Manual Muni Disambiguation ##
 ####################################
+
+##########################################
+## 8 - Create Tract to Cousub Crosswalk ##
+##########################################
+
+Census_Tracts_2020 <- st_read(paste("Census_Geographies/2020_tracts/tl_2020_", state_code,"_tract20.shp", sep = "")) # bring in Census Place level geometries
+
+Census_Tracts_2020_Clean <- subset(Census_Tracts_2020, select = -c(STATEFP20,NAMELSAD20,MTFCC20,FUNCSTAT20,ALAND20,AWATER20,INTPTLAT20,INTPTLON20,COUNTYFP20,TRACTCE20,NAME20)) # remove extraneous fields
+
+Cousubs_2020_Proj_Clean <- subset(Cousubs_2020_Proj, select = -c(CLASSFP,COUNTYFP,COUSUBFP,COUSUBNS))
+
+Tract_Cousubs_2020 <- subset(Cousubs_2020_Proj_Clean, GEOID %in% Tract_Aggregation_List)
+
+########
 
 place_PSH_Unmerged_Final$CENSUS2010[place_PSH_Unmerged_Final$name == "NJ CITY OF ORANGE TOWNSHIP"] <- 3401313045 # manually set City of Orange Township (Essex County)
 place_PSH_Unmerged_Final$CENSUS2010[place_PSH_Unmerged_Final$name == "NJ PRINCETON TOWNSHIP"] <- 3402160900 # manually set Princeton Township (Mercer County) to Princeton Borough (Mercer County) since they've merged
