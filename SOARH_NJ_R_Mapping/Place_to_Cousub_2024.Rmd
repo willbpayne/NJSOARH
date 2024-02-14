@@ -17,22 +17,41 @@ library(htmltools)
 library(tmap) # use this to map them
 library(dplyr) # use this to join and manipulate data frames
 library(tidyverse)
-#library(PROJ) # necessary?
-#library(transformr) # necessary?
+library(readxl) # use this to read excel files
 
-place_PSH_2023 <- read.csv(file = 'PLACE_2023.csv') # read in national place-level data
+place_PSH_2023_ALL <- read.csv(file = 'PLACE_2023.csv') # read in national place-level data
+tract_PSH_2023_AK_MN <- read_excel("TRACT_AK_MN_2023_2020census.xlsx") # same for tracts part 1
+tract_PSH_2023_MO_WY <- read_excel("TRACT_MO_WY_2023_2020census.xlsx") # same for tracts part 2
 
-state_name <- 'NJ New Jersey' # set this once and everything flows from here
+state_name <- 'WY Wyoming' # set this once and everything flows from here
 state_abbreviation <- substring(state_name,1,2) # set this once and everything flows from here
 
-place_PSH <- place_PSH_2023 %>% filter(grepl(state_name, states)) # filter to single state
-state_code <- substr(head(place_PSH,1)$code,1,2) # store state code
+place_PSH_2023 <- place_PSH_2023_ALL %>% filter(grepl(state_name, states)) # filter to single state
+state_code <- substr(head(place_PSH_2023,1)$code,1,2) # store state code
 
-place_PSH <- subset(place_PSH, select = -c(gsl,states,sumlevel,sub_program,entities, fedhse, cbsa, latitude, longitude, state, pha_total_units, ha_size)) # remove unneeded columns
-place_PSH[place_PSH==-1]<-0 # replace -1 with 0 throughout (missing data)
-place_PSH[place_PSH==-4]<-NA # replace -4 with NA throughout (suppressed demographic data)
-place_PSH[place_PSH==-5]<-NA # replace -5 with NA throughout (reporting under 50% demographic data)
+place_PSH_2023 <- subset(place_PSH_2023, select = -c(gsl,states,sumlevel,sub_program,entities, fedhse, cbsa, latitude, longitude, state, pha_total_units, ha_size)) # remove unneeded columns
+place_PSH_2023[place_PSH_2023==-1]<-0 # replace -1 with 0 throughout (missing data)
+place_PSH_2023[place_PSH_2023==-4]<-NA # replace -4 with NA throughout (suppressed demographic data)
+place_PSH_2023[place_PSH_2023==-5]<-NA # replace -5 with NA throughout (reporting under 50% demographic data)
 
+state_list_tracts_1 <- unique(tract_PSH_2023_AK_MN$states) # list of states in the first tract file
+
+if (state_name %in% state_list_tracts_1) {
+  tract_PSH_2023 <- tract_PSH_2023_AK_MN %>% filter(grepl(state_name, states)) # use first tract file
+} else {
+  tract_PSH_2023 <- tract_PSH_2023_MO_WY %>% filter(grepl(state_name, states)) # use second tract file
+}
+
+tract_PSH_2023 <- subset(tract_PSH_2023, select = -c(gsl,states,sumlevel,sub_program,entities, fedhse, cbsa, latitude, longitude, state, pha_total_units, ha_size)) # remove unneeded columns
+tract_PSH_2023[tract_PSH_2023==-1]<-0 # replace -1 with 0 throughout (missing data)
+tract_PSH_2023[tract_PSH_2023==-4]<-NA # replace -4 with NA throughout (suppressed demographic data)
+tract_PSH_2023[tract_PSH_2023==-5]<-NA # replace -5 with NA throughout (reporting under 50% demographic data)
+
+rm(place_PSH_2023_ALL, tract_PSH_2023_AK_MN, tract_PSH_2023_MO_WY, state_list_tracts_1) # remove big files outputs
+
+```
+
+```{r setup, include=FALSE}
 ##########################################
 ## 2 - Combining Data from All Programs ##
 ##########################################
@@ -57,7 +76,9 @@ place_PSH <- place_PSH %>%
   select(all_of(names_id), names_to_order)
 
 rm(names_id, names_to_order) # remove intermediate outputs
+```
 
+```{r setup, include=FALSE}
 #####################################
 ## 3 - Split Dataset by Error Type ##
 #####################################
@@ -89,7 +110,9 @@ place_PSH_CDPs <- rbind(place_PSH_CDPs, place_PSH_geoID_CDPs) # bind those toget
 place_PSH_remainders <- place_PSH_999999s %>% filter(grepl('REMAINDER', name)) # extract remainders of cousubs
 place_PSH_othercousubs <- place_PSH_999999s %>% filter(!grepl('REMAINDER', name)) # extract other cousubs without geoids
 place_PSH_XXXXX <- filter(place_PSH_no_CDPs, code == code_XXXXX) # extract missing values (unmappable)
+```
 
+```{r setup, include=FALSE}
 #######################################
 ## 4 - Find Unjoinable Units by Type ##
 #######################################
