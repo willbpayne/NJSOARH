@@ -23,7 +23,7 @@ place_PSH_2023_ALL <- read.csv(file = 'PLACE_2023.csv') # read in national place
 tract_PSH_2023_AK_MN <- read_excel("TRACT_AK_MN_2023_2020census.xlsx") # same for tracts part 1
 tract_PSH_2023_MO_WY <- read_excel("TRACT_MO_WY_2023_2020census.xlsx") # same for tracts part 2
 
-state_name <- 'WY Wyoming' # set this once and everything flows from here
+state_name <- 'NJ New Jersey' # set this once and everything flows from here
 state_abbreviation <- substring(state_name,1,2) # set this once and everything flows from here
 
 place_PSH_2023 <- place_PSH_2023_ALL %>% filter(grepl(state_name, states)) # filter to single state
@@ -56,10 +56,11 @@ rm(place_PSH_2023_ALL, tract_PSH_2023_AK_MN, tract_PSH_2023_MO_WY, state_list_tr
 ## 2 - Combining Data from All Programs ##
 ##########################################
 
-prefixes <- unique(place_PSH$program) # get all the unique program names used in the dataset
+# do this for place-level data first
+prefixes <- unique(place_PSH_2023$program) # get all the unique program names used in the dataset
 
-place_PSH <- pivot_wider( # pivot them to one row per cdp/cousub/remainder
-  place_PSH,
+place_PSH_2023 <- pivot_wider( # pivot them to one row per cdp/cousub/remainder
+  place_PSH_2023,
   id_cols = NULL,
   names_from = program,
   names_prefix = "",
@@ -70,46 +71,73 @@ place_PSH <- pivot_wider( # pivot them to one row per cdp/cousub/remainder
 )
 
 # sort the dataframe so that each set of unit counts and demographic variables are together by program
-names_to_order <- map(prefixes, ~ names(place_PSH)[grep(paste0(.x,"_"), names(place_PSH))]) %>% unlist
-names_id <- setdiff(names(place_PSH), names_to_order)
-place_PSH <- place_PSH %>%
+names_to_order <- map(prefixes, ~ names(place_PSH_2023)[grep(paste0(.x,"_"), names(place_PSH_2023))]) %>% unlist
+names_id <- setdiff(names(place_PSH_2023), names_to_order)
+place_PSH_2023 <- place_PSH_2023 %>%
   select(all_of(names_id), names_to_order)
 
 rm(names_id, names_to_order) # remove intermediate outputs
+
+# and then for tract-level data
+prefixes <- unique(tract_PSH_2023$program) # get all the unique program names used in the dataset
+
+tract_PSH_2023 <- pivot_wider( # pivot them to one row per cdp/cousub/remainder
+  tract_PSH_2023,
+  id_cols = NULL,
+  names_from = program,
+  names_prefix = "",
+  names_sep = "_",
+  names_glue = "Pg{program}_{.value}",
+  values_from = c(program_label,total_units,pct_occupied,number_reported,pct_reported,months_since_report,months_since_report,pct_movein,people_per_unit,people_total,rent_per_month,spending_per_month,hh_income,person_income,pct_lt5k,pct_5k_lt10k,pct_10k_lt15k,pct_15k_lt20k,pct_ge20k,pct_wage_major,pct_welfare_major,pct_other_major,pct_median,pct_lt50_median,pct_lt30_median,pct_2adults,pct_1adult,pct_female_head,pct_female_head_child,pct_disabled_lt62,pct_disabled_ge62,pct_disabled_all,pct_lt24_head,pct_age25_50,pct_age51_61,pct_age62plus,pct_age85plus,pct_minority,pct_black_nonhsp,pct_native_american_nonhsp,pct_asian_pacific_nonhsp,pct_white_nothsp,pct_black_hsp,pct_wht_hsp,pct_oth_hsp,pct_hispanic,pct_multi,months_waiting,months_from_movein,pct_utility_allow,ave_util_allow,pct_bed1,pct_bed2,pct_bed3,pct_overhoused,tpoverty,tminority,tpct_ownsfd),
+  names_sort = TRUE
+)
+
+# sort the dataframe so that each set of unit counts and demographic variables are together by program
+names_to_order <- map(prefixes, ~ names(tract_PSH_2023)[grep(paste0(.x,"_"), names(tract_PSH_2023))]) %>% unlist
+names_id <- setdiff(names(tract_PSH_2023), names_to_order)
+tract_PSH_2023 <- tract_PSH_2023 %>%
+  select(all_of(names_id), names_to_order)
+
+rm(names_id, names_to_order) # remove intermediate outputs
+
+
 ```
 
 ```{r setup, include=FALSE}
-#####################################
-## 3 - Split Dataset by Error Type ##
-#####################################
+###########################################
+## 3 - Split Place Dataset by Error Type ##
+###########################################
 
 code_99999 <- paste(state_code, '99999', sep='') # state geoid for unjoinable geographies
 code_XXXXX <- paste(state_code, 'XXXXX', sep='') # state geoid for units lacking location information
 
 if (state_code == '09'){
-    place_PSH_CDPs <- place_PSH %>% filter(grepl('CDP|BOROUGH', name)) # extract CDPs
+    place_PSH_CDPs <- place_PSH_2023 %>% filter(grepl('CDP|BOROUGH', name)) # extract CDPs
     print("I'm in Connecticut!")
   } else {
     if (state_code == '36'){
-      place_PSH_CDPs <- place_PSH %>% filter(grepl('CDP|VILLAGE', name)) # extract CDPs
+      place_PSH_CDPs <- place_PSH_2023 %>% filter(grepl('CDP|VILLAGE', name)) # extract CDPs
       print("I'm in New York!")
       } else {
-        place_PSH_CDPs <- place_PSH %>% filter(grepl('CDP', name)) # extract CDPs
+        place_PSH_CDPs <- place_PSH_2023 %>% filter(grepl('CDP', name)) # extract CDPs
       }
   }
 
-place_PSH_no_CDPs <- place_PSH %>% filter(!grepl('CDP', name)) # remove CDPs from the main dataset
+place_PSH_no_CDPs <- place_PSH_2023 %>% filter(!grepl('CDP', name)) # remove CDPs from the main dataset
 place_PSH_999999s <- filter(place_PSH_no_CDPs, code == code_99999) # extract rows without geoids, including remainders
 place_PSH_geoID <- filter(place_PSH_no_CDPs, code != code_99999) # extract non-CDPs with working geoids
-place_PSH_geoID <- place_PSH_geoID %>% filter(!grepl('REMAINDER', name)) # remove fake remainders from here
+place_PSH_XXXXX <- filter(place_PSH_no_CDPs, code == code_XXXXX) # extract missing values (unmappable)
+place_PSH_geoID <- filter(place_PSH_geoID, code != code_XXXXX) # remove missing values (unmappable)
 
 place_PSH_geoID_CDPs <- place_PSH_geoID %>% filter(grepl('REMAINDER', name)) # extract non-remainders (CDPs) with working geoids
+place_PSH_geoID_noCDPs <- place_PSH_geoID %>% filter(!grepl('REMAINDER', name)) # extract non-remainders (CDPs) with working geoids
 
 place_PSH_CDPs <- rbind(place_PSH_CDPs, place_PSH_geoID_CDPs) # bind those together with CDPs
 
 place_PSH_remainders <- place_PSH_999999s %>% filter(grepl('REMAINDER', name)) # extract remainders of cousubs
 place_PSH_othercousubs <- place_PSH_999999s %>% filter(!grepl('REMAINDER', name)) # extract other cousubs without geoids
-place_PSH_XXXXX <- filter(place_PSH_no_CDPs, code == code_XXXXX) # extract missing values (unmappable)
+
+rm(place_PSH_999999s,place_PSH_geoID,place_PSH_geoID_CDPs,place_PSH_no_CDPs,place_PSH_XXXXX) # remove intermediate outputs
 ```
 
 ```{r setup, include=FALSE}
