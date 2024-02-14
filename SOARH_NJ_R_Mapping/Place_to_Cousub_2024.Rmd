@@ -98,7 +98,7 @@ names_id <- setdiff(names(tract_PSH_2023), names_to_order)
 tract_PSH_2023 <- tract_PSH_2023 %>%
   select(all_of(names_id), names_to_order)
 
-rm(names_id, names_to_order) # remove intermediate outputs
+rm(names_id, names_to_order, prefixes) # remove intermediate outputs
 
 
 ```
@@ -137,7 +137,7 @@ place_PSH_CDPs <- rbind(place_PSH_CDPs, place_PSH_geoID_CDPs) # bind those toget
 place_PSH_remainders <- place_PSH_999999s %>% filter(grepl('REMAINDER', name)) # extract remainders of cousubs
 place_PSH_othercousubs <- place_PSH_999999s %>% filter(!grepl('REMAINDER', name)) # extract other cousubs without geoids
 
-rm(place_PSH_999999s,place_PSH_geoID,place_PSH_geoID_CDPs,place_PSH_no_CDPs,place_PSH_XXXXX) # remove intermediate outputs
+rm(place_PSH_999999s,place_PSH_geoID,place_PSH_geoID_CDPs,place_PSH_no_CDPs) # remove intermediate outputs
 ```
 
 ```{r setup, include=FALSE}
@@ -167,7 +167,7 @@ for(i in 1:length(prefixes)) { # loop to get unjoinable units by type of error a
   missing_column <- place_PSH_XXXXX[grepl(totalname,colnames(place_PSH_XXXXX))]
   unjoinable_units_by_type[unjoinable_units_by_type$Pg==prefixes[i], "unjoin_Missing"] <- sum(missing_column,na.rm=TRUE)
 
-  total_summary_column <- place_PSH[grepl(totalname,colnames(place_PSH))]
+  total_summary_column <- place_PSH_2023[grepl(totalname,colnames(place_PSH_2023))]
   unjoinable_units_by_type[unjoinable_units_by_type$Pg==prefixes[i], "Total_units"] <- sum(total_summary_column,na.rm=TRUE)
   
   rm(i, totalname, unjoinable_99999_column, unjoinable_CDP_column, unjoinable_remainder_column, missing_column, total_summary_column) 
@@ -187,17 +187,22 @@ write.csv(unjoinable_units_by_type, paste0(state_abbreviation,"_unjoinable_units
 Next set of steps
 
 ```{r setup, include=FALSE}
+
 ########################################
 ## 5 - Create CDP to Cousub Crosswalk ##
 ########################################
 
+# read in Census places, subset to CDPs, remove fields, remove original dataset
 Census_Place_2020 <- st_read(paste("Census_Geographies/2020_place/tl_2020_", state_code,"_place/tl_2020_", state_code, "_place.shp", sep = "")) # bring in Census Place level geometries
 Census_CDPs_2020 <- Census_Place_2020 %>% filter(grepl('CDP', NAMELSAD)) #filter to only CDPs
 Census_CDPs_2020 <- subset(Census_CDPs_2020, select = -c(PCICBSA, PCINECTA,STATEFP,INTPTLAT,INTPTLON,ALAND,AWATER,FUNCSTAT,LSAD,CLASSFP,MTFCC)) # remove extraneous fields
+rm(Census_Place_2020)
 
+# find the centroid of all CDPs in the state and get lon and lat
 CDP_bounds <- st_bbox(Census_CDPs_2020) # get the bounding box for the CDPs in this state
 CDP_centroid_lon <- (CDP_bounds[1] + CDP_bounds[3])/2 # average the longs
 CDP_centroid_lat <- (CDP_bounds[2] + CDP_bounds[4])/2 # average the lats
+rm(CDP_bounds)
 
 # function below is adapted from code by Gordon McDonald from 8/10/2021, found here: https://gis.stackexchange.com/questions/13291/computing-utm-zone-from-lat-long-point
 
@@ -213,50 +218,45 @@ find_one_utm_zone <- function(longitude, latitude) { # function to find the righ
     }
 }
 
+# figure out the simple version of the UTM zone for this state
 utm_zone <- find_one_utm_zone(CDP_centroid_lon, CDP_centroid_lat) # find the right UTM zone
 utm_zone_simple <- substr(utm_zone, 1, nchar(utm_zone)-1)
+rm(utm_zone, CDP_centroid_lat, CDP_centroid_lon)
+rm(find_one_utm_zone)
+
+# reproject the CDP layer to the correct UTM CRS, run a negative buffer, delete original dataset
 CDP_2020_Proj <- st_transform(Census_CDPs_2020, paste0("+proj=utm +zone=",utm_zone_simple," +ellps=GRS80 +datum=NAD83", sep="")) #reproject to correct UTM zone
 CDP_2020_Neg_Buffer <- CDP_2020_Proj %>% st_buffer(-150)  # create the negative 1000 foot buffer
-CDP_2020_Neg_Buffer$sqkm <- as.numeric(st_area(CDP_2020_Neg_Buffer)/1000000)
+CDP_2020_Neg_Buffer$sqkm <- as.numeric(st_area(CDP_2020_Neg_Buffer)/1000000) # add a square kilometer field
+rm(Census_CDPs_2020, CDP_2020_Proj)
 
-Census_Cousubs_2020 <- st_read(paste("Census_Geographies/2020_cousub/tl_2020_", state_code,"_cousub/tl_2020_", state_code, "_cousub.shp", sep = "")) # bring in Census Place level geometries
+# bring in Census county subdivision geometries, subset, and reproject
+Census_Cousubs_2020 <- st_read(paste("Census_Geographies/2020_cousub/tl_2020_", state_code,"_cousub/tl_2020_", state_code, "_cousub.shp", sep = "")) 
+Census_Cousubs_2020 <- Census_Cousubs_2020 %>% filter(!grepl('not defined', NAME)) # extract non-remainders (CDPs) with working geoids
+
 Census_Cousubs_2020 <- subset(Census_Cousubs_2020, select = -c(CNECTAFP,NECTAFP,NCTADVFP,STATEFP,INTPTLAT,INTPTLON,ALAND,AWATER,FUNCSTAT,LSAD,MTFCC))
 Cousubs_2020_Proj <- Census_Cousubs_2020 %>% sf::st_transform(paste0("+proj=utm +zone=",utm_zone_simple," +ellps=GRS80 +datum=NAD83", sep="")) # reproject to UTM projection specified above
+rm(Census_Cousubs_2020)
+# need to deal with PINE VALLEY!!!
 
-CDP_Correspondence_Table <- st_join(CDP_2020_Neg_Buffer, Cousubs_2020_Proj, suffix = c("_CDP", "_Cousub"))
-CDP_Correspondence_Table <- subset(CDP_Correspondence_Table, select = -c(CLASSFP)) # remove extra field that we might use elsewhere but not now
+# JOIN ROUTE
+#CDP_Correspondence_Table <- st_join(CDP_2020_Neg_Buffer, Cousubs_2020_Proj, suffix = c("_CDP", "_Cousub"))
+#CDP_Correspondence_Table <- subset(CDP_Correspondence_Table, select = -c(CLASSFP)) # remove extra field that we might use elsewhere but not now
 
+# intersect CDPs and county subdivisions
 CDP_Cousub_intersects <- st_intersection(CDP_2020_Neg_Buffer, Cousubs_2020_Proj) # try this
 CDP_Cousub_intersects$area <- as.numeric(st_area(CDP_Cousub_intersects)/1000000)
 CDP_Cousub_intersects$coverage <- CDP_Cousub_intersects$area/CDP_Cousub_intersects$sqkm
 
-## ADD CODE TO CHECK PROJECT LEVEL AND TRACT LEVEL PSH TO DISAMBIGUATE
-## ANYTHING AT THE PROJECT LEVEL WE CAN RIGOROUSLY ASSIGN TO A COUSUB
-## HCV UNITS WE NEED TO PROPORTIONALLY ASSIGN AND/OR BUILD UP FROM TRACTS
-
+# subset to only CDPs that span munis
 CDPs_with_Munis_Duplicates_Total <- duplicated(pull(CDP_Cousub_intersects,PLACEFP)) | duplicated(pull(CDP_Cousub_intersects,PLACEFP), fromLast=TRUE) # get duplicates and originals
-
-CDPs_with_Munis_Duplicates_Total
-colnames(CDPs_with_Munis_Duplicates_Total)
-
 CDPs_with_Munis_Duplicates_Total_List <- CDP_Cousub_intersects[CDPs_with_Munis_Duplicates_Total,c("NAMELSAD", "NAMELSAD.1","coverage","GEOID","GEOID.1")]
+rm(CDPs_with_Munis_Duplicates_Total, CDP_Cousub_intersects)
 
-Ambiguous_CDP_Muni_List <- CDPs_with_Munis_Duplicates_Total_List[['GEOID.1']]
-Ambiguous_CDP_Muni_List_Deduplicated <- unique(Ambiguous_CDP_Muni_List)
-
-Ambiguous_Muni_Name_List_Character <- as.character(Ambiguous_Muni_Name_List)
-
-Tract_Aggregation_List <- unique(c(Ambiguous_CDP_Muni_List_Deduplicated, Ambiguous_Muni_Name_List_Character))
-
-CDPs_with_Munis_Duplicates_Total_No_Geo <- st_drop_geometry(CDPs_with_Munis_Duplicates_Total_List) # remove geometry
-
-# JOIN THIS BY CODE TO PSH
-
-CDPs_with_Munis_Duplicates_Total_Export <- left_join(CDPs_with_Munis_Duplicates_Total_No_Geo, place_PSH_CDPs, by = c("GEOID" = "code")) # put them together, but this is getting too much
-
-write.csv(CDPs_with_Munis_Duplicates_Total_Export, 'place_2023_CDP_duplicates.csv', na = "")
-
-CDP_Cousub_intersects <- st_drop_geometry(CDP_Cousub_intersects) # remove geometry
+# extract list of all muni GEOIDs that have ambiguous CDPs, and all CDPs to remove from automated process
+Tract_Aggregation_List <- unique(CDPs_with_Munis_Duplicates_Total_List[['GEOID.1']])
+CDPs_to_Remove <- unique(CDPs_with_Munis_Duplicates_Total_List[['GEOID']])
+rm(CDPs_with_Munis_Duplicates_Total_List)
 
 ```
 
