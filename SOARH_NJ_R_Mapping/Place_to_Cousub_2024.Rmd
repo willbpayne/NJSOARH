@@ -6,8 +6,7 @@ output: html_document
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
-
+knitr::opts_chunk$set(echo = FALSE)
 ########################################
 ## 1 - Setup and Initializing Dataset ##
 ########################################
@@ -50,9 +49,6 @@ tract_PSH_2023[tract_PSH_2023==-5]<-NA # replace -5 with NA throughout (reportin
 
 rm(place_PSH_2023_ALL, tract_PSH_2023_AK_MN, tract_PSH_2023_MO_WY, state_list_tracts_1) # remove big files outputs
 
-```
-
-```{r setup, include=FALSE}
 ##########################################
 ## 2 - Combining Data from All Programs ##
 ##########################################
@@ -77,8 +73,6 @@ names_id <- setdiff(names(place_PSH_2023), names_to_order)
 place_PSH_2023 <- place_PSH_2023 %>%
   select(all_of(names_id), names_to_order)
 
-rm(names_id, names_to_order) # remove intermediate outputs
-
 # and then for tract-level data
 prefixes <- unique(tract_PSH_2023$program) # get all the unique program names used in the dataset
 
@@ -99,12 +93,8 @@ names_id <- setdiff(names(tract_PSH_2023), names_to_order)
 tract_PSH_2023 <- tract_PSH_2023 %>%
   select(all_of(names_id), names_to_order)
 
-rm(names_id, names_to_order, prefixes) # remove intermediate outputs
+rm(names_id, names_to_order) # remove intermediate outputs
 
-
-```
-
-```{r setup, include=FALSE}
 ###########################################
 ## 3 - Split Place Dataset by Error Type ##
 ###########################################
@@ -112,6 +102,7 @@ rm(names_id, names_to_order, prefixes) # remove intermediate outputs
 code_99999 <- paste(state_code, '99999', sep='') # state geoid for unjoinable geographies
 code_XXXXX <- paste(state_code, 'XXXXX', sep='') # state geoid for units lacking location information
 
+# find out what to do with CDPs, which in CT and NY also include other non-governmental place types
 if (state_code == '09'){
     place_PSH_CDPs <- place_PSH_2023 %>% filter(grepl('CDP|BOROUGH', name)) # extract CDPs
     print("I'm in Connecticut!")
@@ -123,25 +114,28 @@ if (state_code == '09'){
         place_PSH_CDPs <- place_PSH_2023 %>% filter(grepl('CDP', name)) # extract CDPs
       }
   }
-
 place_PSH_no_CDPs <- place_PSH_2023 %>% filter(!grepl('CDP', name)) # remove CDPs from the main dataset
+
+# divide others into rows with geoids and ones without them
 place_PSH_999999s <- filter(place_PSH_no_CDPs, code == code_99999) # extract rows without geoids, including remainders
 place_PSH_geoID <- filter(place_PSH_no_CDPs, code != code_99999) # extract non-CDPs with working geoids
-place_PSH_XXXXX <- filter(place_PSH_no_CDPs, code == code_XXXXX) # extract missing values (unmappable)
+
+# separate missing values
+place_PSH_bad_XXXXX <- filter(place_PSH_no_CDPs, code == code_XXXXX) # extract missing values (unmappable)
 place_PSH_geoID <- filter(place_PSH_geoID, code != code_XXXXX) # remove missing values (unmappable)
 
-place_PSH_geoID_CDPs <- place_PSH_geoID %>% filter(grepl('REMAINDER', name)) # extract non-remainders (CDPs) with working geoids
-place_PSH_geoID_noCDPs <- place_PSH_geoID %>% filter(!grepl('REMAINDER', name)) # extract non-remainders (CDPs) with working geoids
-
+# solve an issues where HUD is using 2020 CDP geometries but only has 2010 names
+# basically some CDPs show up with the correct geoid but are called "(remainder of)/X township" mistakenly
+place_PSH_geoID_CDPs <- place_PSH_geoID %>% filter(grepl('TOWNSHIP', name)) # extract non-remainders (CDPs) with working geoids from the geoid section
 place_PSH_CDPs <- rbind(place_PSH_CDPs, place_PSH_geoID_CDPs) # bind those together with CDPs
+place_PSH_geoID_noCDPs <- place_PSH_geoID %>% filter(!grepl('TOWNSHIP', name)) # save the rest of them
 
+# divide 999999s between remainders and regular county subdivisions
 place_PSH_remainders <- place_PSH_999999s %>% filter(grepl('REMAINDER', name)) # extract remainders of cousubs
 place_PSH_othercousubs <- place_PSH_999999s %>% filter(!grepl('REMAINDER', name)) # extract other cousubs without geoids
 
 rm(place_PSH_999999s,place_PSH_geoID,place_PSH_geoID_CDPs,place_PSH_no_CDPs) # remove intermediate outputs
-```
 
-```{r setup, include=FALSE}
 #######################################
 ## 4 - Find Unjoinable Units by Type ##
 #######################################
@@ -165,7 +159,7 @@ for(i in 1:length(prefixes)) { # loop to get unjoinable units by type of error a
   unjoinable_remainder_column <- place_PSH_remainders[grepl(totalname,colnames(place_PSH_remainders))]
   unjoinable_units_by_type[unjoinable_units_by_type$Pg==prefixes[i], "unjoin_Remainder"] <- sum(unjoinable_remainder_column,na.rm=TRUE)
 
-  missing_column <- place_PSH_XXXXX[grepl(totalname,colnames(place_PSH_XXXXX))]
+  missing_column <- place_PSH_bad_XXXXX[grepl(totalname,colnames(place_PSH_bad_XXXXX))]
   unjoinable_units_by_type[unjoinable_units_by_type$Pg==prefixes[i], "unjoin_Missing"] <- sum(missing_column,na.rm=TRUE)
 
   total_summary_column <- place_PSH_2023[grepl(totalname,colnames(place_PSH_2023))]
@@ -182,12 +176,6 @@ unjoinable_units_by_type$total_unjoinable <- unjoinable_units_by_type$unjoin_CDP
 unjoinable_units_by_type$total_unjoinable_Pct <- unjoinable_units_by_type$total_unjoinable/unjoinable_units_by_type$total_joinable *100
 
 write.csv(unjoinable_units_by_type, paste0(state_abbreviation,"_unjoinable_units_by_type_2023.csv",sep=''), row.names=FALSE) # writes filename with state abbreviation, update later for different years
-
-```
-
-Next set of steps
-
-```{r setup, include=FALSE}
 
 ########################################
 ## 5 - Create CDP to Cousub Crosswalk ##
@@ -234,7 +222,13 @@ rm(Census_CDPs_2020, CDP_2020_Proj)
 # bring in Census county subdivision geometries, subset, and reproject
 Census_Cousubs <- st_read(paste("Census_Geographies/", cousub_year,"_cousub/tl_", cousub_year, "_", state_code,"_cousub/tl_",cousub_year,"_", state_code, "_cousub.shp", sep = "")) 
 Census_Cousubs <- Census_Cousubs %>% filter(!grepl('not defined', NAME)) # extract non-remainders (CDPs) with working geoids
-Census_Cousubs <- subset(Census_Cousubs, select = -c(CNECTAFP,NECTAFP,NCTADVFP,STATEFP,INTPTLAT,INTPTLON,ALAND,AWATER,FUNCSTAT,LSAD,MTFCC))
+if (cousub_year == '2023') {
+  Census_Cousubs <- subset(Census_Cousubs, select = -c(STATEFP,COUSUBNS,GEOIDFQ,INTPTLAT,INTPTLON,ALAND,AWATER,FUNCSTAT,LSAD,MTFCC)) # fields to drop
+} else {
+  Census_Cousubs <- subset(Census_Cousubs, select = -c(CNECTAFP,NECTAFP,NCTADVFP,STATEFP,INTPTLAT,INTPTLON,ALAND,AWATER,FUNCSTAT,LSAD,MTFCC))
+ # different fields to drop
+}
+
 Cousubs_Proj <- Census_Cousubs %>% sf::st_transform(paste0("+proj=utm +zone=",utm_zone_simple," +ellps=GRS80 +datum=NAD83", sep="")) # reproject to UTM projection specified above
 rm(Census_Cousubs)
 
@@ -250,7 +244,7 @@ CDPs_with_Munis_Duplicates_Total_List <- CDP_Cousub_intersects[CDPs_with_Munis_D
 rm(CDPs_with_Munis_Duplicates_Total)
 
 # extract list of all muni GEOIDs that have ambiguous CDPs, and all CDPs to remove from automated process
-Tract_Aggregation_List <- unique(CDPs_with_Munis_Duplicates_Total_List[['GEOID.1']])
+Ambiguous_CDP_Muni_GEOID_List <- unique(CDPs_with_Munis_Duplicates_Total_List[['GEOID.1']])
 CDPs_to_Remove <- unique(CDPs_with_Munis_Duplicates_Total_List[['GEOID']])
 Cleaned_CDP_Cousub_Intersects <- CDP_Cousub_intersects %>% filter(! GEOID %in% CDPs_to_Remove)
 
@@ -261,9 +255,6 @@ rm(CDPs_with_Munis_Duplicates_Total_List, CDP_Cousub_intersects, place_PSH_CDPs)
 rm(CDP_2020_Neg_Buffer)
 rm(CDPs_to_Remove)
 
-```
-
-```{r setup, include=FALSE}
 ###################################
 ## 6 - Set Aside Handled Cousubs ##
 ###################################
@@ -274,9 +265,6 @@ place_PSH_Cousubs_Already$Join_Name <- str_to_title(substr(place_PSH_Cousubs_Alr
 
 rm(place_PSH_geoID_noCDPs, place_PSH_othercousubs) # remove intermediate steps
 
-```
-
-```{r setup, include=FALSE}
 #######################################
 ## 7 - Aggregate CDPs and Remainders ##
 #######################################
@@ -286,64 +274,61 @@ place_PSH_good_CDPs_with_Munis <- left_join(place_PSH_good_CDPs, Cleaned_CDP_Cou
 rm(place_PSH_good_CDPs)
 
 # find the list of repeated county subdivision names and GEOIDs
-Ambiguous_Muni_Names_Boolean <- duplicated(pull(Cousubs_2020_Proj,NAMELSAD)) | duplicated(pull(Cousubs_2020_Proj,NAMELSAD), fromLast=TRUE)
-Ambiguous_Muni_Names <- Cousubs_2020_Proj[Ambiguous_Muni_Names_Boolean, c('COUNTYFP','NAMELSAD',"GEOID")]
+Ambiguous_Muni_Names_Boolean <- duplicated(pull(Cousubs_Proj,NAMELSAD)) | duplicated(pull(Cousubs_Proj,NAMELSAD), fromLast=TRUE)
+Ambiguous_Muni_Names <- Cousubs_Proj[Ambiguous_Muni_Names_Boolean, c('COUNTYFP','NAMELSAD',"GEOID")]
 Ambiguous_Muni_Names$PSH_Name <- paste(state_abbreviation,toupper(Ambiguous_Muni_Names$NAMELSAD))
 Ambiguous_Muni_Name_List <- unique(Ambiguous_Muni_Names[['PSH_Name']])
 Ambiguous_Muni_GEOID_List <- Ambiguous_Muni_Names[['GEOID']] # extract GEOIDs for tract matching
 rm(Ambiguous_Muni_Names_Boolean, Ambiguous_Muni_Names)
 
 # pull ambiguous cousub rows from PSH cousubs dataframe
-place_PSH_good_Cousubs <- place_PSH_Cousubs_Already %>% filter(!name %in% Ambiguous_Muni_Name_List | code != code_99999) # gets all the good ones; anything with a valid geoid and any township that's unambiguous
-place_PSH_bad_Cousubs <- place_PSH_Cousubs_Already %>% filter(name %in% Ambiguous_Muni_Name_List & code == code_99999) # only ambiguous townships go here
+place_PSH_good_Cousubs <- place_PSH_Cousubs_Already %>% filter(!name %in% Ambiguous_Muni_Name_List) # gets all the good ones; anything with a valid geoid and any township that's unambiguous
+place_PSH_bad_Cousubs <- place_PSH_Cousubs_Already %>% filter(name %in% Ambiguous_Muni_Name_List) # only ambiguous townships go here
 rm(place_PSH_Cousubs_Already)
 
 # make a join field for good cousubs with the Census file
 place_PSH_good_Cousubs$NAMELSAD <- str_to_upper(sub('...', '', place_PSH_good_Cousubs$name))
+
+if (cousub_year == '2023' & state_code == '34') {
+  place_PSH_good_Cousubs$NAMELSAD[place_PSH_good_Cousubs$NAMELSAD == "PRINCETON BOROUGH"] <- "PRINCETON" # manually set Princeton Borough (Mercer County) to Princeton to match Census
+}
 
 # joining time!
 Cousubs_Proj_no_geo <- st_drop_geometry(Cousubs_Proj) # drop geometry
 Cousubs_Proj_no_geo$NAMELSAD <- str_to_upper(Cousubs_Proj_no_geo$NAMELSAD) # update format of join field
 place_PSH_good_Cousubs_with_Munis <- left_join(place_PSH_good_Cousubs, Cousubs_Proj_no_geo, by = "NAMELSAD") # put them together
 
-write.csv(place_PSH_good_Cousubs_with_Munis,"place_PSH_good_Cousubs_with_Munis.csv", row.names=FALSE) # writes filename with state abbreviation, update later for different years
+# for testing only
+place_PSH_good_Cousubs_with_Munis_Duplicates <- duplicated(pull(place_PSH_good_Cousubs_with_Munis,NAMELSAD)) | duplicated(pull(place_PSH_good_Cousubs_with_Munis,NAMELSAD), fromLast=TRUE)
+place_PSH_good_Cousubs_with_Munis_Duplicated <- place_PSH_good_Cousubs_with_Munis[place_PSH_good_Cousubs_with_Munis_Duplicates, c('COUNTYFP','NAMELSAD',"GEOID")]
+rm(place_PSH_good_Cousubs_with_Munis_Duplicated, place_PSH_good_Cousubs)
 
-#### STOP
-
-
-# Remove the "Missing" row
-place_PSH_Cousubs_Missing <- filter(place_PSH_Cousubs_Already, code == '34XXXXX')
-place_PSH_Cousubs_Not_Missing <- filter(place_PSH_Cousubs_Already, !code == '34XXXXX')
-
-# Get the 99999s out
-place_PSH_Cousubs_Already_99999s <- filter(place_PSH_Cousubs_Not_Missing, code == '3499999')
-place_PSH_Cousubs_Already_Valid <- filter(place_PSH_Cousubs_Not_Missing, !code == '3499999')
-
-place_PSH_Cousubs_Already_Valid$PSH_Join <- paste0(place_PSH_Cousubs_Already_Valid$place," ",place_PSH_Cousubs_Already_Valid$Join_Name)
-
-place_PSH_Cousubs_Already_Matched <- left_join(place_PSH_Cousubs_Already_Valid, NJ_Munis_for_Matching, by = "PSH_Join") # put them together
-
-place_PSH_Cousubs_Already_99999s_Matched <- left_join(place_PSH_Cousubs_Already_99999s, NJ_Munis_for_Matching, by = c("Join_Name" = "MUN_LABEL")) # put them together
-
-
-place_PSH_Cousubs_Already$PSH_Join <- paste0(place_PSH_Cousubs_Already$place," ",place_PSH_Cousubs_Already$Join_Name) # 843 rows handled now, plus 416 for CDPs that aren't manual and 6 that are missing
-
-rm(place_PSH_Cousubs_Not_Missing, place_PSH_Cousubs_Already_Valid) # clean up
-
-place_PSH_Cousubs_So_Far_Prep <- dplyr::bind_rows(place_PSH_Cousubs_Already_99999s_Matched,place_PSH_Cousubs_Already_Matched,place_PSH_CDPs_with_Munis,place_PSH_Cousubs_Missing)
+#write.csv(place_PSH_good_Cousubs_with_Munis,"place_PSH_good_Cousubs_with_Munis.csv", row.names=FALSE) # writes filename with state abbreviation, update later for different years
 
 # Handle the remainders
 
-place_PSH_remainders <- filter(place_PSH_remainders, !name == 'NJ REMAINDER OF WASHINGTON TOWNSHIP')
+place_PSH_remainders$NAMELSAD <- str_to_upper(substr(place_PSH_remainders$name,17,nchar(place_PSH_remainders$name))) # trim to 
+place_PSH_remainders$PSH_name <- paste("NJ", str_to_upper(substr(place_PSH_remainders$name,17,nchar(place_PSH_remainders$name)))) # trim to 
 
-place_PSH_remainders$MUN_LABEL <- str_to_title(substr(place_PSH_remainders$name,17,nchar(place_PSH_remainders$name)))
+place_PSH_good_remainders <- place_PSH_remainders %>% filter(!PSH_name %in% Ambiguous_Muni_Name_List) # 
+place_PSH_bad_remainders <- place_PSH_remainders %>% filter(PSH_name %in% Ambiguous_Muni_Name_List) 
 
-place_PSH_remainders_matched <- left_join(place_PSH_remainders, NJ_Munis_for_Matching, by = "MUN_LABEL") # put them together
+place_PSH_good_remainders_with_Munis <- left_join(place_PSH_good_remainders, Cousubs_Proj_no_geo, by = "NAMELSAD") # put them together
 
-place_PSH_Cousubs_So_Far <- dplyr::bind_rows(place_PSH_Cousubs_So_Far_Prep,place_PSH_remainders_matched)
+rm(place_PSH_good_remainders, place_PSH_remainders)
 
-place_PSH_Unmerged_Final <- subset(place_PSH_Cousubs_So_Far, !CENSUS2010 %in% manual_tract_aggregation_list)
-place_PSH_Unmerged_Manual <- subset(place_PSH_Cousubs_So_Far, CENSUS2010 %in% manual_tract_aggregation_list)
+# create a common GISJOIN field across the three (CDP had GEOID.1, not GEOID)
+place_PSH_good_CDPs_with_Munis$GISJOIN <- place_PSH_good_CDPs_with_Munis$GEOID.1
+place_PSH_good_Cousubs_with_Munis$GISJOIN <- place_PSH_good_Cousubs_with_Munis$GEOID
+place_PSH_good_remainders_with_Munis$GISJOIN <- place_PSH_good_remainders_with_Munis$GEOID
+
+place_PSH_Cousubs_So_Far <- dplyr::bind_rows(place_PSH_good_CDPs_with_Munis,place_PSH_good_Cousubs_with_Munis,place_PSH_good_remainders_with_Munis) # put everything that has a geoid together
+
+bad_cousub_match <- place_PSH_good_Cousubs_with_Munis %>% filter(is.na(GISJOIN)) # test for any missing geoids
+rm(place_PSH_good_CDPs_with_Munis,place_PSH_good_Cousubs_with_Munis,place_PSH_good_remainders_with_Munis) # get rid of intermediate files
+
+Final_Tract_Aggregation_List <- unique(c(Ambiguous_Muni_GEOID_List,Ambiguous_CDP_Muni_GEOID_List)) # list of all munis in the state that need to be built from tract-level data
+rm(Ambiguous_Muni_GEOID_List,Ambiguous_Muni_Name_List,place_PSH_good_Cousubs_with_Munis_Duplicates,Ambiguous_CDP_Muni_GEOID_List)
 
 ##########################################
 ## 8 - Create Tract to Cousub Crosswalk ##
