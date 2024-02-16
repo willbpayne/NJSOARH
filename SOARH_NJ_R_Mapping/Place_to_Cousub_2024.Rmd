@@ -24,6 +24,7 @@ tract_PSH_2023_AK_MN <- read_excel("TRACT_AK_MN_2023_2020census.xlsx") # same fo
 tract_PSH_2023_MO_WY <- read_excel("TRACT_MO_WY_2023_2020census.xlsx") # same for tracts part 2
 
 state_name <- 'NJ New Jersey' # set this once and everything flows from here
+cousub_year <- '2023' # set this one and everything flows from here
 state_abbreviation <- substring(state_name,1,2) # set this once and everything flows from here
 
 place_PSH_2023 <- place_PSH_2023_ALL %>% filter(grepl(state_name, states)) # filter to single state
@@ -231,16 +232,17 @@ CDP_2020_Neg_Buffer$sqkm <- as.numeric(st_area(CDP_2020_Neg_Buffer)/1000000) # a
 rm(Census_CDPs_2020, CDP_2020_Proj)
 
 # bring in Census county subdivision geometries, subset, and reproject
-Census_Cousubs_2020 <- st_read(paste("Census_Geographies/2020_cousub/tl_2020_", state_code,"_cousub/tl_2020_", state_code, "_cousub.shp", sep = "")) 
-Census_Cousubs_2020 <- Census_Cousubs_2020 %>% filter(!grepl('not defined', NAME)) # extract non-remainders (CDPs) with working geoids
 
-Census_Cousubs_2020 <- subset(Census_Cousubs_2020, select = -c(CNECTAFP,NECTAFP,NCTADVFP,STATEFP,INTPTLAT,INTPTLON,ALAND,AWATER,FUNCSTAT,LSAD,MTFCC))
-Cousubs_2020_Proj <- Census_Cousubs_2020 %>% sf::st_transform(paste0("+proj=utm +zone=",utm_zone_simple," +ellps=GRS80 +datum=NAD83", sep="")) # reproject to UTM projection specified above
-rm(Census_Cousubs_2020)
+Census_Cousubs <- st_read(paste("Census_Geographies/", cousub_year,"_cousub/tl_", cousub_year, "_", state_code,"_cousub/tl_",cousub_year,"_", state_code, "_cousub.shp", sep = "")) 
+Census_Cousubs <- Census_Cousubs %>% filter(!grepl('not defined', NAME)) # extract non-remainders (CDPs) with working geoids
+
+Census_Cousubs <- subset(Census_Cousubs, select = -c(CNECTAFP,NECTAFP,NCTADVFP,STATEFP,INTPTLAT,INTPTLON,ALAND,AWATER,FUNCSTAT,LSAD,MTFCC))
+Cousubs_Proj <- Census_Cousubs %>% sf::st_transform(paste0("+proj=utm +zone=",utm_zone_simple," +ellps=GRS80 +datum=NAD83", sep="")) # reproject to UTM projection specified above
+rm(Census_Cousubs)
 # need to deal with PINE VALLEY!!!
 
 # intersect CDPs and county subdivisions
-CDP_Cousub_intersects <- st_intersection(CDP_2020_Neg_Buffer, Cousubs_2020_Proj) # try this
+CDP_Cousub_intersects <- st_intersection(CDP_2020_Neg_Buffer, Cousubs_Proj) # try this
 CDP_Cousub_intersects$area <- as.numeric(st_area(CDP_Cousub_intersects)/1000000)
 CDP_Cousub_intersects$coverage <- CDP_Cousub_intersects$area/CDP_Cousub_intersects$sqkm
 CDP_Cousub_intersects <- st_drop_geometry(CDP_Cousub_intersects) # remove geometry
@@ -304,9 +306,9 @@ rm(place_PSH_Cousubs_Already)
 place_PSH_good_Cousubs$NAMELSAD <- str_to_upper(sub('...', '', place_PSH_good_Cousubs$name))
 
 # joining time!
-Cousubs_2020_Proj_no_geo <- st_drop_geometry(Cousubs_2020_Proj) # drop geometry
-Cousubs_2020_Proj_no_geo$NAMELSAD <- str_to_upper(Cousubs_2020_Proj_no_geo$NAMELSAD) # update format of join field
-place_PSH_good_Cousubs_with_Munis <- left_join(place_PSH_good_Cousubs, Cousubs_2020_Proj_no_geo, by = "NAMELSAD") # put them together
+Cousubs_Proj_no_geo <- st_drop_geometry(Cousubs_Proj) # drop geometry
+Cousubs_Proj_no_geo$NAMELSAD <- str_to_upper(Cousubs_Proj_no_geo$NAMELSAD) # update format of join field
+place_PSH_good_Cousubs_with_Munis <- left_join(place_PSH_good_Cousubs, Cousubs_Proj_no_geo, by = "NAMELSAD") # put them together
 
 write.csv(place_PSH_good_Cousubs_with_Munis,"place_PSH_good_Cousubs_with_Munis.csv", row.names=FALSE) # writes filename with state abbreviation, update later for different years
 
