@@ -232,14 +232,11 @@ CDP_2020_Neg_Buffer$sqkm <- as.numeric(st_area(CDP_2020_Neg_Buffer)/1000000) # a
 rm(Census_CDPs_2020, CDP_2020_Proj)
 
 # bring in Census county subdivision geometries, subset, and reproject
-
 Census_Cousubs <- st_read(paste("Census_Geographies/", cousub_year,"_cousub/tl_", cousub_year, "_", state_code,"_cousub/tl_",cousub_year,"_", state_code, "_cousub.shp", sep = "")) 
 Census_Cousubs <- Census_Cousubs %>% filter(!grepl('not defined', NAME)) # extract non-remainders (CDPs) with working geoids
-
 Census_Cousubs <- subset(Census_Cousubs, select = -c(CNECTAFP,NECTAFP,NCTADVFP,STATEFP,INTPTLAT,INTPTLON,ALAND,AWATER,FUNCSTAT,LSAD,MTFCC))
 Cousubs_Proj <- Census_Cousubs %>% sf::st_transform(paste0("+proj=utm +zone=",utm_zone_simple," +ellps=GRS80 +datum=NAD83", sep="")) # reproject to UTM projection specified above
 rm(Census_Cousubs)
-# need to deal with PINE VALLEY!!!
 
 # intersect CDPs and county subdivisions
 CDP_Cousub_intersects <- st_intersection(CDP_2020_Neg_Buffer, Cousubs_Proj) # try this
@@ -263,7 +260,6 @@ place_PSH_good_CDPs <- place_PSH_CDPs %>% filter(!code %in% CDPs_to_Remove)
 rm(CDPs_with_Munis_Duplicates_Total_List, CDP_Cousub_intersects, place_PSH_CDPs)
 rm(CDP_2020_Neg_Buffer)
 rm(CDPs_to_Remove)
-# need to pull out our crosswalk table here and remove CDPs that have ambiguous munis
 
 ```
 
@@ -312,6 +308,8 @@ place_PSH_good_Cousubs_with_Munis <- left_join(place_PSH_good_Cousubs, Cousubs_P
 
 write.csv(place_PSH_good_Cousubs_with_Munis,"place_PSH_good_Cousubs_with_Munis.csv", row.names=FALSE) # writes filename with state abbreviation, update later for different years
 
+#### STOP
+
 
 # Remove the "Missing" row
 place_PSH_Cousubs_Missing <- filter(place_PSH_Cousubs_Already, code == '34XXXXX')
@@ -326,7 +324,6 @@ place_PSH_Cousubs_Already_Valid$PSH_Join <- paste0(place_PSH_Cousubs_Already_Val
 place_PSH_Cousubs_Already_Matched <- left_join(place_PSH_Cousubs_Already_Valid, NJ_Munis_for_Matching, by = "PSH_Join") # put them together
 
 place_PSH_Cousubs_Already_99999s_Matched <- left_join(place_PSH_Cousubs_Already_99999s, NJ_Munis_for_Matching, by = c("Join_Name" = "MUN_LABEL")) # put them together
-
 
 
 place_PSH_Cousubs_Already$PSH_Join <- paste0(place_PSH_Cousubs_Already$place," ",place_PSH_Cousubs_Already$Join_Name) # 843 rows handled now, plus 416 for CDPs that aren't manual and 6 that are missing
