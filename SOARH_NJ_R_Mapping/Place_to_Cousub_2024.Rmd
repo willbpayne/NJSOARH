@@ -242,9 +242,12 @@ CDP_Cousub_intersects <- st_drop_geometry(CDP_Cousub_intersects) # remove geomet
 CDPs_with_Munis_Duplicates_Total <- duplicated(pull(CDP_Cousub_intersects,PLACEFP)) | duplicated(pull(CDP_Cousub_intersects,PLACEFP), fromLast=TRUE) # get duplicates and originals
 CDPs_with_Munis_Duplicates_Total_List <- CDP_Cousub_intersects[CDPs_with_Munis_Duplicates_Total,c("NAMELSAD", "NAMELSAD.1","coverage","GEOID","GEOID.1")]
 rm(CDPs_with_Munis_Duplicates_Total)
+#write.csv(CDPs_with_Munis_Duplicates_Total_List,"duplicate_CDPs.csv")
 
 # extract list of all muni GEOIDs that have ambiguous CDPs, and all CDPs to remove from automated process
 Ambiguous_CDP_Muni_GEOID_List <- unique(CDPs_with_Munis_Duplicates_Total_List[['GEOID.1']])
+Ambiguous_CDP_Muni_Name_List <- unique(CDPs_with_Munis_Duplicates_Total_List[['NAMELSAD.1']])
+# these can have slightly different lengths, for example if two cousubs with the same name in different counties both contain CDPs that overlap other cousubs (Washington Township in NJ, for example)
 CDPs_to_Remove <- unique(CDPs_with_Munis_Duplicates_Total_List[['GEOID']])
 Cleaned_CDP_Cousub_Intersects <- CDP_Cousub_intersects %>% filter(! GEOID %in% CDPs_to_Remove)
 
@@ -289,11 +292,12 @@ rm(place_PSH_Cousubs_Already)
 # make a join field for good cousubs with the Census file
 place_PSH_good_Cousubs$NAMELSAD <- str_to_upper(sub('...', '', place_PSH_good_Cousubs$name))
 
+# MANUAL ADJUSTMENTS TO NAMES GO HERE!
 if (cousub_year == '2023' & state_code == '34') {
-  place_PSH_good_Cousubs$NAMELSAD[place_PSH_good_Cousubs$NAMELSAD == "PRINCETON BOROUGH"] <- "PRINCETON" # manually set Princeton Borough (Mercer County) to Princeton to match Census
+  place_PSH_good_Cousubs$NAMELSAD[place_PSH_good_Cousubs$NAMELSAD == "PRINCETON BOROUGH"] <- "PRINCETON" # manually set Princeton Borough (Mercer County) to Princeton to match Census name since HUD has old one
 }
 
-# joining time!
+# joining good cousubs to TIGER
 Cousubs_Proj_no_geo <- st_drop_geometry(Cousubs_Proj) # drop geometry
 Cousubs_Proj_no_geo$NAMELSAD <- str_to_upper(Cousubs_Proj_no_geo$NAMELSAD) # update format of join field
 place_PSH_good_Cousubs_with_Munis <- left_join(place_PSH_good_Cousubs, Cousubs_Proj_no_geo, by = "NAMELSAD") # put them together
@@ -303,10 +307,7 @@ place_PSH_good_Cousubs_with_Munis_Duplicates <- duplicated(pull(place_PSH_good_C
 place_PSH_good_Cousubs_with_Munis_Duplicated <- place_PSH_good_Cousubs_with_Munis[place_PSH_good_Cousubs_with_Munis_Duplicates, c('COUNTYFP','NAMELSAD',"GEOID")]
 rm(place_PSH_good_Cousubs_with_Munis_Duplicated, place_PSH_good_Cousubs)
 
-#write.csv(place_PSH_good_Cousubs_with_Munis,"place_PSH_good_Cousubs_with_Munis.csv", row.names=FALSE) # writes filename with state abbreviation, update later for different years
-
 # Handle the remainders
-
 place_PSH_remainders$NAMELSAD <- str_to_upper(substr(place_PSH_remainders$name,17,nchar(place_PSH_remainders$name))) # trim to 
 place_PSH_remainders$PSH_name <- paste("NJ", str_to_upper(substr(place_PSH_remainders$name,17,nchar(place_PSH_remainders$name)))) # trim to 
 
@@ -324,11 +325,13 @@ place_PSH_good_remainders_with_Munis$GISJOIN <- place_PSH_good_remainders_with_M
 
 place_PSH_Cousubs_So_Far <- dplyr::bind_rows(place_PSH_good_CDPs_with_Munis,place_PSH_good_Cousubs_with_Munis,place_PSH_good_remainders_with_Munis) # put everything that has a geoid together
 
+# hopefully this comes up as a dataframe with 0 rows
 bad_cousub_match <- place_PSH_good_Cousubs_with_Munis %>% filter(is.na(GISJOIN)) # test for any missing geoids
 rm(place_PSH_good_CDPs_with_Munis,place_PSH_good_Cousubs_with_Munis,place_PSH_good_remainders_with_Munis) # get rid of intermediate files
 
 Final_Tract_Aggregation_List <- unique(c(Ambiguous_Muni_GEOID_List,Ambiguous_CDP_Muni_GEOID_List)) # list of all munis in the state that need to be built from tract-level data
-rm(Ambiguous_Muni_GEOID_List,Ambiguous_Muni_Name_List,place_PSH_good_Cousubs_with_Munis_Duplicates,Ambiguous_CDP_Muni_GEOID_List)
+rm(Ambiguous_Muni_GEOID_List,Ambiguous_CDP_Muni_Name_List,Ambiguous_Muni_Name_List,place_PSH_good_Cousubs_with_Munis_Duplicates,Ambiguous_CDP_Muni_GEOID_List)
+rm(bad_cousub_match)
 
 ##########################################
 ## 8 - Create Tract to Cousub Crosswalk ##
@@ -336,25 +339,51 @@ rm(Ambiguous_Muni_GEOID_List,Ambiguous_Muni_Name_List,place_PSH_good_Cousubs_wit
 
 Census_Tracts_2020 <- st_read(paste("Census_Geographies/2020_tracts/tl_2020_", state_code,"_tract20.shp", sep = "")) # bring in Census Place level geometries
 Census_Tracts_2020_Clean <- subset(Census_Tracts_2020, select = -c(STATEFP20,NAMELSAD20,MTFCC20,FUNCSTAT20,ALAND20,AWATER20,INTPTLAT20,INTPTLON20,COUNTYFP20,TRACTCE20,NAME20)) # remove extraneous fields 
-Cousubs_2020_Proj_Clean <- subset(Cousubs_2020_Proj, select = -c(CLASSFP,COUNTYFP,COUSUBFP,COUSUBNS)) # remove extraneous fields here too (MOVE??)
 
-Tract_Cousubs_2020 <- subset(Cousubs_2020_Proj_Clean, GEOID %in% Tract_Aggregation_List) # subset to county subdivisions that we may need to build from tracts
+Tract_Cousubs_2020 <- subset(Cousubs_Proj, GEOID %in% Final_Tract_Aggregation_List) # subset to county subdivisions that we may need to build from tracts
 
 # REPROJECT AND NEGATIVE BUFFER ON TRACTS
 Census_Tracts_2020_Proj <- st_transform(Census_Tracts_2020_Clean, paste0("+proj=utm +zone=",utm_zone_simple," +ellps=GRS80 +datum=NAD83", sep="")) #reproject to correct UTM zone
 Tracts_2020_Neg_Buffer <- Census_Tracts_2020_Proj %>% st_buffer(-150)  # create the negative 150 foot buffer
 Tracts_2020_Neg_Buffer$sqkm <- as.numeric(st_area(Tracts_2020_Neg_Buffer)/1000000)
 
-Tract_Cousub_Correspondence <- st_join(Tracts_2020_Neg_Buffer, Cousubs_2020_Proj_Clean, suffix = c("_CDP", "_Cousub"))
-
 Tract_Cousub_Intersects <- st_intersection(Tracts_2020_Neg_Buffer, Tract_Cousubs_2020) # try this
 Tract_Cousub_Intersects$area <- as.numeric(st_area(Tract_Cousub_Intersects)/1000000)
 Tract_Cousub_Intersects$coverage <- Tract_Cousub_Intersects$area/Tract_Cousub_Intersects$sqkm
+Tract_Cousub_Intersects <- Tract_Cousub_Intersects %>% filter(grepl('T1', CLASSFP)) # remove incorporated places since they're already captured elsewhere
+Tract_Cousub_Intersects <- Tract_Cousub_Intersects %>% filter(coverage > 0.01) # if the overlap is less than one percent of land area, we don't care about it
 
 Tract_Cousub_Intersects_Imperfectly <- subset(Tract_Cousub_Intersects, coverage < 0.99999999)
 
+tract_PSH_2023$GEOID20 <- paste(substr(tract_PSH_2023$code,1,5),substr(tract_PSH_2023$code, 6,nchar(tract_PSH_2023$code)), sep ='') # need an 11-character GEOID for matching
 
-write.csv(place_PSH_Unmerged_Final,'place_PSH_Unmerged_Final.csv')
+Tract_Cousub_Intersects <- st_drop_geometry(Tract_Cousub_Intersects) # drop geometry
+
+# join these tracts in ambiguous munis only, filter to just places with PSH data
+tract_PSH_2023_with_Munis <- left_join(tract_PSH_2023, Tract_Cousub_Intersects, by = "GEOID20") # put them together
+tract_PSH_2023_with_Munis_Aggregation_List <- tract_PSH_2023_with_Munis %>% filter(!is.na(GEOID)) # test for any missing geoids
+tract_PSH_2023_with_Munis_Aggregation_Non_Zero <- tract_PSH_2023_with_Munis_Aggregation_List %>% filter(Pg1_total_units > 0) # only include rows with actual PSH data
+
+tract_PSH_2023_with_Munis_Aggregation_Non_Zero['GEOID20']
+
+tract_PSH_2023_with_Munis_Aggregation_Non_Zero_Duplicates <- duplicated(pull(tract_PSH_2023_with_Munis_Aggregation_Non_Zero,GEOID20)) | duplicated(pull(tract_PSH_2023_with_Munis_Aggregation_Non_Zero,GEOID20), fromLast=TRUE)
+tract_PSH_2023_with_Munis_Aggregation_Non_Zero[tract_PSH_2023_with_Munis_Aggregation_Non_Zero_Duplicates, c('GEOID20',"GEOID","Pg1_total_units","coverage")]
+
+# MANUAL ADJUSTMENTS TO TRACT CROSSWALKS GO HERE
+if (cousub_year == '2023' & state_code == '34') {
+  tract_PSH_2023_with_Munis_Aggregation_Non_Zero <- tract_PSH_2023_with_Munis_Aggregation_Non_Zero %>% filter(!(GEOID20 == "34011010500" & GEOID == "3401171160"))
+}
+rm(tract_PSH_2023_with_Munis_Aggregation_List,tract_PSH_2023_with_Munis)
+
+# make one more GISJOIN field
+tract_PSH_2023_with_Munis_Aggregation_Non_Zero$GISJOIN <- tract_PSH_2023_with_Munis_Aggregation_Non_Zero$GEOID
+
+# coerce here to avoid a type issue in the bind rows below
+tract_PSH_2023_with_Munis_Aggregation_Non_Zero$Quarter <- as.character(tract_PSH_2023_with_Munis_Aggregation_Non_Zero$Quarter)
+
+place_PSH_Unmerged_Final <- dplyr::bind_rows(tract_PSH_2023_with_Munis_Aggregation_Non_Zero, place_PSH_Cousubs_So_Far) # put everything that has a geoid together
+
+write.csv(place_PSH_Unmerged_Final,'place_PSH_Unmerged_Final_2023.csv')
 
 ```
 
@@ -370,6 +399,8 @@ place_PSH_noNAs <- place_PSH_Unmerged_Final %>% # this code drops all the demogr
     )
   )
 
+place_PSH_noNAs <- place_PSH_Unmerged_Final 
+
 # sum occupied units for the programs that have any reporting (not 6 or 7) to make formulas easier later
 place_PSH_noNAs$pg1_occupied_units <- place_PSH_noNAs$Pg1_total_units * place_PSH_noNAs$Pg1_pct_occupied / 100
 place_PSH_noNAs$pg2_occupied_units <- place_PSH_noNAs$Pg2_total_units * place_PSH_noNAs$Pg2_pct_occupied / 100
@@ -380,12 +411,12 @@ place_PSH_noNAs$pg8_occupied_units <- place_PSH_noNAs$Pg8_total_units * place_PS
 place_PSH_noNAs$pg9_occupied_units <- place_PSH_noNAs$Pg9_total_units * place_PSH_noNAs$Pg9_pct_occupied / 100
 
 place_PSH_Final <- place_PSH_noNAs %>%
-  dplyr::group_by(CENSUS2010) %>%
+  dplyr::group_by(GISJOIN) %>%
   summarise(count = n(), 
-            name = ifelse(is.na(PSH_Join),
-                  MUNI_MUN_LABEL,
-                  substr(PSH_Join,7,nchar(PSH_Join))),
-            county = str_to_title(COUNTY),
+            name = ifelse(is.na(NAMELSAD.1),
+                  NAMELSAD, # use this field only if NAMELSAD.1 is NA (for tracts, remainders and cousubs)
+                  NAMELSAD.1), # otherwise use this field (for CDPs)
+            county = COUNTYFP,
         ## Program 1 - Summary of all HUD Programs (634 PLACE entries with units, 422 reporting demographics) ##
             total_units = sum(Pg1_total_units, na.rm=TRUE), 
             total_pct_occupied = (sum(pg1_occupied_units, na.rm=TRUE)/sum(Pg1_total_units, na.rm=TRUE)*100),
@@ -821,36 +852,29 @@ place_PSH_Final <- place_PSH_noNAs %>%
             pg9_months_waiting = (sum(Pg9_months_waiting * Pg9_number_reported, na.rm=TRUE))/sum(Pg9_number_reported, na.rm=TRUE),
             pg9_months_from_movein = (sum(Pg9_months_from_movein * Pg9_number_reported, na.rm=TRUE))/sum(Pg9_number_reported, na.rm=TRUE),
             pg9_pct_utility_allow = (sum(Pg9_pct_utility_allow * Pg9_number_reported, na.rm=TRUE))/sum(Pg9_number_reported, na.rm=TRUE),
-            pg9_pct_lt5kave_util_allow = (sum(Pg9_ave_util_allow * Pg9_number_reported, na.rm=TRUE))/sum(Pg9_number_reported, na.rm=TRUE)) %>% distinct(CENSUS2010, .keep_all = TRUE)
+            pg9_pct_lt5kave_util_allow = (sum(Pg9_ave_util_allow * Pg9_number_reported, na.rm=TRUE))/sum(Pg9_number_reported, na.rm=TRUE)) %>% distinct(GISJOIN, .keep_all = TRUE)
 
 ###################################
 ## 10 - Final Cleanup and Output ##
 ###################################
 
-place_PSH_Final <- place_PSH_Final %>% mutate_all(~ifelse(is.nan(.), NA, .)) # remove duplicate rows and NaN values
+# Clean up town names (optional since we have GISJOIN but nice if you want to examine this document)
+place_PSH_Final$name <- str_to_title(place_PSH_Final$name)
 
-place_PSH_Final$name[place_PSH_Final$CENSUS2010 == 3401528185] <- "Greenwich Township" # 
-place_PSH_Final$name[place_PSH_Final$CENSUS2010 == 3404143320] <- "Mansfield Township" # 
-place_PSH_Final$name[place_PSH_Final$CENSUS2010 == 3401313045] <- "City of Orange Township" # 
-place_PSH_Final$name[place_PSH_Final$CENSUS2010 == 3402160900] <- "Princeton Borough" # 
-place_PSH_Final$name[is.na(place_PSH_Final$CENSUS2010)] <- "Missing" # 
-
-place_PSH_Final$name[place_PSH_Final$CENSUS2010 == 3400102080] <- "Atlantic City" # 
-place_PSH_Final$name[place_PSH_Final$CENSUS2010 == 3400120350] <- "Egg Harbor City" # 
-place_PSH_Final$name[place_PSH_Final$CENSUS2010 == 3400143890] <- "Margate City" # 
-place_PSH_Final$name[place_PSH_Final$CENSUS2010 == 3400175620] <- "Ventnor City" # 
-place_PSH_Final$name[place_PSH_Final$CENSUS2010 == 3401736000] <- "Jersey City" # 
-place_PSH_Final$name[place_PSH_Final$CENSUS2010 == 3401774630] <- "Union City" # 
-
-place_PSH_Final_with_Counties <- left_join(place_PSH_Final, NJ_Munis_for_Matching, by = "CENSUS2010") # put them together
-
-place_PSH_Final_with_Counties$county <- str_to_title(place_PSH_Final_with_Counties$COUNTY)
-
-place_PSH_Final_with_Counties <- subset(place_PSH_Final_with_Counties, select = -c(COUNTY,MUN_LABEL,place,PSH_Join))
+if (cousub_year == '2023' & state_code == '34') {
+  place_PSH_Final$name[place_PSH_Final$GISJOIN == 3400102080] <- "Atlantic City" # 
+  place_PSH_Final$name[place_PSH_Final$GISJOIN == 3400120350] <- "Egg Harbor City" # 
+  place_PSH_Final$name[place_PSH_Final$GISJOIN == 3400143890] <- "Margate City" # 
+  place_PSH_Final$name[place_PSH_Final$GISJOIN == 3400175620] <- "Ventnor City" # 
+  place_PSH_Final$name[place_PSH_Final$GISJOIN == 3401736000] <- "Jersey City" # 
+  place_PSH_Final$name[place_PSH_Final$GISJOIN == 3401774630] <- "Union City" # 
+  place_PSH_Final$name[place_PSH_Final$GISJOIN == 3401313045] <- "City of Orange Township" # 
+  place_PSH_Final$name[place_PSH_Final$GISJOIN == 3402502440] <- "Avon-by-the-Sea Borough" # 
+}
 
 # replace all the infinite and NaN values with NA to avoid causing trouble with mapping?
 
-write.csv(place_PSH_Final_with_Counties, 'place_2021_PSH_Final_with_Counties.csv', na = "")
+write.csv(place_PSH_Final,paste('place_2023_PSH_Final_',state_abbreviation,'.csv',sep=''), na = "")
 
 ```
 
